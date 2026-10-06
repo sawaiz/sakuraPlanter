@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sakura Planter assembly</title>
+<meta name="description" content="Step-by-step 3D assembly of the Sakura Planter: LEGO 10280 Flower Bouquet and 40725 Cherry Blossoms on a printed hexagonal planter.">
+<meta property="og:title" content="Sakura Planter assembly">
+<meta property="og:description" content="Step-by-step 3D assembly: LEGO 10280 and 40725 on a printed hexagonal planter.">
+<meta property="og:image" content="https://sawaiz.github.io/sakuraPlanter/assets/hero.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Shippori+Mincho+B1:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%23C8436E'%3E%3Ccircle cx='16' cy='9' r='6'/%3E%3Ccircle cx='23' cy='14' r='6'/%3E%3Ccircle cx='20' cy='22' r='6'/%3E%3Ccircle cx='12' cy='22' r='6'/%3E%3Ccircle cx='9' cy='14' r='6'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='3' fill='%237a1f40'/%3E%3C/svg%3E">
+<script type="importmap">{"imports": {"three": "./vendor/three.module.min.js"}}</script>
+</head>
+<body>
+<canvas id="scene" aria-label="3D view of the Sakura Planter at the current step"></canvas>
+
+<header class="brand">
+  <h1>Sakura Planter</h1>
+  <p>Assembly in 13 steps. Drag to turn, scroll to zoom.</p>
+  <nav><a href="https://github.com/sawaiz/sakuraPlanter#readme">Build guide</a><a href="https://github.com/sawaiz/sakuraPlanter">Files on GitHub</a></nav>
+</header>
+
+<aside class="panel" id="panel" aria-live="polite">
+  <div class="where" id="where"></div>
+  <h2 id="title"></h2>
+  <div id="body"></div>
+  <div id="tips"></div>
+  <div id="printed"></div>
+  <div id="parts"></div>
+</aside>
+
+<div class="controls">
+  <button id="prev" type="button">Back</button>
+  <button id="replay" type="button" title="Play this step's animation again">Replay</button>
+  <label class="toggle"><input type="checkbox" id="fade" checked> Fade earlier</label>
+  <button id="next" type="button" class="primary">Next step</button>
+</div>
+
+<nav class="rail" aria-label="Steps">
+  <svg id="twig" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true"><path id="twigpath" d=""/></svg>
+  <ol id="nodes"></ol>
+</nav>
+
+<div class="loading" id="loading"><p>Loading the model</p><div class="bar"><span id="bar"></span></div></div>
+
+<script src="data/guide.js"></script>
+<script src="data/steps.js"></script>
+<script>
+  // the model data is ~6 MB: load it with progress so the page can say how far along it is
+  window.dataReady = new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest(); x.open('GET', 'data/viewer_data.js');
+    x.onprogress = e => { const b = document.getElementById('bar'); if (b && e.total) b.style.width = (100 * e.loaded / e.total).toFixed(0) + '%'; };
+    x.onload = () => { if (x.status && x.status !== 200) return reject(new Error('viewer_data.js: HTTP ' + x.status)); (0, eval)(x.responseText); resolve(); };
+    x.onerror = () => { const s = document.createElement('script'); s.src = 'data/viewer_data.js'; s.onload = resolve; s.onerror = reject; document.head.appendChild(s); };
+    x.send();
+  });
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

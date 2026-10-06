@@ -1,0 +1,254 @@
+{
+ "Planter": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 39408.2,
+  "volume_cm3": 244.45,
+  "bbox_mm": [
+   229.1,
+   198.6,
+   103.7
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 58118
+ },
+ "SoilCore": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 55573.9,
+  "volume_cm3": 182.99,
+  "bbox_mm": [
+   210.1,
+   182.0,
+   20.2
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 3422
+ },
+ "SoilMat": {
+  "material": "TPU 95A Black",
+  "valid": true,
+  "overhang_mm2_gt45": 28071.7,
+  "volume_cm3": 46.97,
+  "bbox_mm": [
+   210.8,
+   182.6,
+   9.4
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 2112
+ },
+ "Trunk": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 1255.6,
+  "volume_cm3": 171.14,
+  "bbox_mm": [
+   63.6,
+   59.9,
+   223.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 81160
+ },
+ "Branch1": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 21.65,
+  "bbox_mm": [
+   154.5,
+   45.5,
+   9.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 2788
+ },
+ "Branch2": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 19.96,
+  "bbox_mm": [
+   139.5,
+   55.5,
+   9.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 3320
+ },
+ "Branch3": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 21.26,
+  "bbox_mm": [
+   149.5,
+   49.5,
+   9.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 3730
+ },
+ "Branch4": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 18.96,
+  "bbox_mm": [
+   129.5,
+   59.5,
+   9.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 2352
+ },
+ "Branch5": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 17.56,
+  "bbox_mm": [
+   116.5,
+   63.5,
+   9.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 2996
+ },
+ "Foot": {
+  "material": "TPU 95A Clear (print 6)",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 0.41,
+  "bbox_mm": [
+   14.3,
+   14.3,
+   2.6
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 626
+ },
+ "JointSleeve": {
+  "material": "TPU 95A Clear (print 5)",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 0.31,
+  "bbox_mm": [
+   9.7,
+   9.7,
+   8.6
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 1156
+ },
+ "FT1_FloorPegs": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 5.85,
+  "bbox_mm": [
+   86.0,
+   20.0,
+   10.5
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 5120
+ },
+ "FT2_VerticalHoles": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 16.73,
+  "bbox_mm": [
+   86.0,
+   36.0,
+   6.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 11084
+ },
+ "FT3_BranchRoot": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 13.46,
+  "bbox_mm": [
+   86.0,
+   20.0,
+   9.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 8060
+ },
+ "FT4_StubFace": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 23.3,
+  "volume_cm3": 23.32,
+  "bbox_mm": [
+   120.0,
+   22.0,
+   22.0
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 8070
+ },
+ "FT5_FootPockets": {
+  "material": "eSUN PLA+ Bone White",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 6.23,
+  "bbox_mm": [
+   128.0,
+   20.0,
+   3.2
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 7724
+ },
+ "FT6_SoilMat": {
+  "material": "TPU 95A Black",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 4.71,
+  "bbox_mm": [
+   86.0,
+   30.0,
+   9.1
+  ],
+  "solids": 1,
+  "mesh_closed": true,
+  "triangles": 5600
+ },
+ "FT7_Sleeves": {
+  "material": "TPU 95A Clear (print 5)",
+  "valid": true,
+  "overhang_mm2_gt45": 0.0,
+  "volume_cm3": 4.14,
+  "bbox_mm": [
+   120.2,
+   22.0,
+   8.6
+  ],
+  "solids": 3,
+  "mesh_closed": true,
+  "triangles": 12064
+ }
+}

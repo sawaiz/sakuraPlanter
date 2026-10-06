@@ -1,0 +1,618 @@
+# -*- coding: utf-8 -*-
+"""Sakura Planter - printed parts for LEGO 10280 + 40725, Prusa CORE One.
+
+FreeCAD 1.0 macro. Every dimension and fit comes from the 'Params' spreadsheet in SakuraPlanter.FCStd
+(or from the defaults below on a first run). Edit the spreadsheet, then run this macro again
+(Macro > Macros... > build_sakura.FCMacro > Execute) to regenerate every part.
+
+Files next to this macro: motif.json (the sakura branch artwork, made by tools/make_motif.py),
+fonts/DejaVuSans-Bold.ttf (labels). Output: SakuraPlanter.FCStd here, STEP/STL/JSON in ./out.
+
+Materials
+  eSUN PLA+ Bone White : planter, trunk, branches 1-5, PLA fit coupon
+  TPU 95A black         : soil plate (soil look + springy pegs that grip the LEGO stems), TPU fit coupon
+  TPU 95A clear         : 6 non-slip feet, 5 joint sleeves (hold the 3L pins' stop bushes)
+
+World frame: millimetres, Z up, top of the soil plate at z = 0, trunk axis on x = y = 0.
+"""
+import math, json, os
+import FreeCAD as App
+import Part
+
+def _cad_dir():
+    cands = [os.environ.get('SAKURA_CAD', '')]
+    try: cands.append(os.path.dirname(os.path.abspath(__file__)))
+    except NameError: pass
+    if App.ActiveDocument and App.ActiveDocument.FileName: cands.append(os.path.dirname(App.ActiveDocument.FileName))
+    cands += [os.getcwd(), App.getUserMacroDir(True)]
+    for c in cands:
+        if c and os.path.exists(os.path.join(c, 'motif.json')): return c
+    raise RuntimeError('Put build_sakura.FCMacro, motif.json and fonts/ in one folder (or set SAKURA_CAD).')
+CAD = _cad_dir()
+OUT = os.environ.get('SAKURA_OUT', os.path.join(CAD, 'out'))
+os.makedirs(OUT, exist_ok=True)
+FONT = os.path.join(CAD, 'fonts', 'DejaVuSans-Bold.ttf')
+V = App.Vector
+
+# ---------------------------------------------------------------------------- parameters
+DEFAULTS = [
+    # name, value, unit/comment
+    ('section', 'Planter (eSUN PLA+ Bone White)', ''),
+    ('pot_inr_top', 98.0, 'mm  hexagon inradius at the rim (196 mm across flats)'),
+    ('pot_inr_bot', 75.0, 'mm  hexagon inradius at the foot'),
+    ('pot_top_z', 12.0, 'mm  rim height above the soil surface'),
+    ('pot_bot_z', -83.0, 'mm  underside of the planter'),
+    ('pot_wall', 3.2, 'mm  wall thickness (8 perimeters at 0.4 mm)'),
+    ('pot_floor', 3.0, 'mm  floor thickness'),
+    ('pot_lip', 1.2, 'mm  rim band projection'),
+    ('pot_lip_h', 7.0, 'mm  rim band height'),
+    ('pot_corner_r', 6.0, 'mm  fillet on the vertical corners'),
+    ('ledge_w', 4.0, 'mm  width of the soil-plate ledge'),
+    ('foot_pocket_d', 14.0, 'mm  pocket for the clear TPU feet'),
+    ('foot_pocket_h', 1.8, 'mm'),
+    ('motif_depth', 0.8, 'mm  depth of the sakura motif pockets (paint fill)'),
+    ('motif_margin', 6.0, 'mm  motif keeps this far from each hex corner'),
+    ('section2', 'LEGO fits in PLA (print the coupon first)', ''),
+    ('axle_w', 5.0, 'mm  cross hole width (LEGO axle 4.8)'),
+    ('axle_t', 2.0, 'mm  cross hole arm (LEGO axle 1.8)'),
+    ('pin_d', 4.9, 'mm  Technic pin hole (pin 4.8), vertical'),
+    ('hpin_d', 4.95, 'mm  pin hole printed horizontally (branch roots); fit test FT3'),
+    ('haxle_w', 5.05, 'mm  cross hole printed horizontally (branch roots and tips); fit test FT3'),
+    ('haxle_t', 2.05, 'mm'),
+    ('bar_d', 3.3, 'mm  bar hole (bar 3.18)'),
+    ('peg_w', 4.75, 'mm  printed PLA cross peg (connector hole 4.8)'),
+    ('peg_t', 1.75, 'mm'),
+    ('peg_h', 7.5, 'mm'),
+    ('section3', 'Soil plate (TPU 95A black)', ''),
+    ('soil_t', 8.0, 'mm  plate thickness (PLA core + TPU mat)'),
+    ('mat_t', 1.6, 'mm  black TPU mat on top of the bone PLA core'),
+    ('soil_gap', 0.5, 'mm  clearance to the planter wall'),
+    ('tpu_peg_w', 4.85, 'mm  TPU cross peg: 0.05 mm interference, grips the stem connectors'),
+    ('tpu_peg_t', 1.85, 'mm'),
+    ('tpu_axle_w', 4.9, 'mm  TPU pass-through for the 32L axles: light grip'),
+    ('tpu_axle_t', 1.9, 'mm'),
+    ('boss_r', 11.8, 'mm  raised boss the trunk sits on'),
+    ('section4', 'Trunk and branches (eSUN PLA+ Bone White)', ''),
+    ('trunk_h', 200.0, 'mm'),
+    ('trunk_r0', 20.0, 'mm  radius at the soil'),
+    ('trunk_r1', 12.0, 'mm  radius at the top'),
+    ('face_w', 22.0, 'mm  branch joint face width'),
+    ('stub_t', 14.0, 'mm  stub thickness (room for the TPU sleeve)'),
+    ('arm_t', 9.0, 'mm  branch thickness (printed flat)'),
+    ('sleeve_pocket_d', 9.6, 'mm  pocket in the stub for the TPU sleeve'),
+    ('sleeve_pocket_h', 9.0, 'mm'),
+    ('key_d', 2.0, 'mm  key pin on each stub face (unique position per branch)'),
+    ('key_h', 1.6, 'mm'),
+    ('key_hole_d', 2.4, 'mm  matching hole in the branch root'),
+    ('label_depth', 0.6, 'mm  engraved numbers on stubs and branches'),
+    ('section5', 'Clear TPU parts', ''),
+    ('foot_d', 14.3, 'mm  foot: 0.3 mm press fit in its pocket'),
+    ('foot_h', 2.6, 'mm  stands 0.8 mm proud'),
+    ('sleeve_od', 9.7, 'mm  0.1 mm press fit in the stub pocket'),
+    ('sleeve_id', 6.9, 'mm  grips the 3L pin stop bush (7.2 mm)'),
+    ('sleeve_l', 8.6, 'mm'),
+]
+P = {k: v for k, v, _ in DEFAULTS if not k.startswith('section')}
+
+doc_path = os.path.join(CAD, 'SakuraPlanter.FCStd')
+doc = App.ActiveDocument if App.ActiveDocument and App.ActiveDocument.Name == 'SakuraPlanter' else None
+if doc is None and os.path.exists(doc_path):
+    doc = App.openDocument(doc_path)
+if doc is None:
+    doc = App.newDocument('SakuraPlanter')
+sheet = doc.getObject('Params')
+if sheet is None:
+    sheet = doc.addObject('Spreadsheet::Sheet', 'Params')
+    sheet.set('A1', 'Parameter'); sheet.set('B1', 'Value'); sheet.set('C1', 'Notes')
+    r = 2
+    for k, v, c in DEFAULTS:
+        if k.startswith('section'):
+            sheet.set(f'A{r}', v); sheet.setStyle(f'A{r}', 'bold')
+        else:
+            sheet.set(f'A{r}', k); sheet.set(f'B{r}', str(v)); sheet.setAlias(f'B{r}', k); sheet.set(f'C{r}', c)
+        r += 1
+    doc.recompute()
+else:
+    r = 2
+    while sheet.getContents(f'A{r}'): r += 1
+    for k, v, c in DEFAULTS:                      # read existing values, append parameters added since
+        if k.startswith('section'): continue
+        try: P[k] = float(sheet.get(k))
+        except Exception:
+            sheet.set(f'A{r}', k); sheet.set(f'B{r}', str(v)); sheet.setAlias(f'B{r}', k); sheet.set(f'C{r}', c); r += 1
+    doc.recompute()
+for o in [o for o in doc.Objects if o.Name != 'Params']:
+    doc.removeObject(o.Name)
+
+# ---------------------------------------------------------------------------- helpers
+def mat(origin, zdir, xhint=(0, 0, 1)):
+    z = V(*zdir); z.normalize()
+    x = V(*xhint); x = x - z * x.dot(z)
+    if x.Length < 1e-6:
+        x = V(1, 0, 0) - z * z.x
+    x.normalize(); y = z.cross(x)
+    m = App.Matrix(x.x, y.x, z.x, origin[0], x.y, y.y, z.y, origin[1], x.z, y.z, z.z, origin[2], 0, 0, 0, 1)
+    return m, x, y, z
+def placed(shape, m):
+    s = shape.copy(); s.transformShape(m); return s
+def cross(depth, w, t):
+    a = Part.makeBox(w, t, depth + 0.2, V(-w / 2, -t / 2, -0.1)); b = Part.makeBox(t, w, depth + 0.2, V(-t / 2, -w / 2, -0.1))
+    return a.fuse(b).removeSplitter()
+def cyl(r, h, z0=0.0):
+    return Part.makeCylinder(r, h, V(0, 0, z0))
+def chk(sh, what):
+    if not sh.isValid():
+        sh2 = sh.copy(); sh2.fix(1e-5, 1e-5, 1e-4)
+        print('repaired' if sh2.isValid() else 'STILL INVALID', what); return sh2
+    return sh
+def hexwire(inr, z):
+    R = inr / math.cos(math.radians(30))
+    pts = [V(R * math.cos(math.radians(60 * k)), R * math.sin(math.radians(60 * k)), z) for k in range(6)]
+    return Part.makePolygon(pts + [pts[0]])
+def hex_loft(inr0, z0, inr1, z1):
+    return Part.makeLoft([hexwire(inr0, z0), hexwire(inr1, z1)], True, True)
+def lin(a, b, t): return a + (b - a) * t
+def text_solid(txt, size, depth):
+    """Engraving tool: text centred on the origin in XY, from z = -depth to z = +0.5."""
+    faces = []
+    for ch in Part.makeWireString(txt, FONT, size, 0):
+        ws = [w if isinstance(w, Part.Wire) else Part.Wire(w) for w in ch]
+        if ws: faces.append(Part.makeFace(ws, 'Part::FaceMakerBullseye'))
+    comp = Part.makeCompound(faces); bb = comp.BoundBox
+    sol = Part.makeCompound([fc.extrude(V(0, 0, depth + 0.5)) for fc in faces])
+    sol.translate(V(-(bb.XMin + bb.XMax) / 2, -(bb.YMin + bb.YMax) / 2, -depth))
+    return sol
+def engrave(shape, txt, size, depth, origin, normal, up):
+    """Cut txt into shape on a surface at origin with outward normal, reading upright along up."""
+    n = V(*normal); n.normalize(); u = V(*up); u = u - n * u.dot(n); u.normalize(); r = u.cross(n)
+    m = App.Matrix(r.x, u.x, n.x, origin[0], r.y, u.y, n.y, origin[1], r.z, u.z, n.z, origin[2], 0, 0, 0, 1)
+    t = text_solid(txt, size, depth); t.transformShape(m)
+    return shape.cut(t)
+anchors = {'axle_holes': [], 'pin_holes': [], 'notes': {}}
+def anchor(kind, m, x, z, depth, label, part):
+    anchors[kind].append({'label': label, 'part': part, 'origin': [round(m.A14, 3), round(m.A24, 3), round(m.A34, 3)],
+                          'dir': [round(z.x, 4), round(z.y, 4), round(z.z, 4)], 'x': [round(x.x, 4), round(x.y, 4), round(x.z, 4)], 'depth': depth})
+
+# ============================================================================ 1. PLANTER (hexagonal)
+TOPZ, BOTZ = P['pot_top_z'], P['pot_bot_z']
+def inr_out(z): return lin(P['pot_inr_bot'], P['pot_inr_top'], (z - BOTZ) / (TOPZ - BOTZ))
+outer = hex_loft(P['pot_inr_bot'], BOTZ, P['pot_inr_top'], TOPZ)
+try:
+    vert = [e for e in outer.Edges if abs(e.Vertexes[0].Z - e.Vertexes[-1].Z) > 50]
+    outer = outer.makeFillet(P['pot_corner_r'], vert)
+except Exception as ex:
+    print('corner fillet skipped:', ex)
+z0 = TOPZ - P['pot_lip_h']      # 45-degree underside so the band prints without support
+lip = Part.makeLoft([hexwire(inr_out(z0) - 0.3, z0), hexwire(inr_out(z0 + P['pot_lip']) + P['pot_lip'], z0 + P['pot_lip']),
+                     hexwire(P['pot_inr_top'] + P['pot_lip'], TOPZ)], True, True)
+try:
+    vert = [e for e in lip.Edges if abs(e.Vertexes[0].Z - e.Vertexes[-1].Z) > 3]
+    lip = lip.makeFillet(P['pot_corner_r'] + P['pot_lip'], vert)
+except Exception as ex:
+    print('lip fillet skipped:', ex)
+outer = outer.fuse(lip)
+W = P['pot_wall'] * 1.03
+FLOOR_TOP = BOTZ + P['pot_floor']
+inner = hex_loft(inr_out(FLOOR_TOP) - W, FLOOR_TOP, inr_out(TOPZ + 1) - W, TOPZ + 1)
+try:
+    vert = [e for e in inner.Edges if abs(e.Vertexes[0].Z - e.Vertexes[-1].Z) > 50]
+    inner = inner.makeFillet(max(0.5, P['pot_corner_r'] - P['pot_wall']), vert)
+except Exception as ex:
+    print('inner fillet skipped:', ex)
+planter = outer.cut(inner)
+# ledge for the soil plate: top face at z = -soil_t, 45-degree underside (prints without support)
+LZ = -P['soil_t']
+li = inr_out(LZ) - W
+ledge = hex_loft(li + 1.0, LZ - P['ledge_w'] - 1.5, li + 1.0, LZ).cut(hex_loft(li - P['ledge_w'] + 0.01, LZ, li + 1.5, LZ - P['ledge_w'] - 1.5))
+planter = planter.fuse(ledge)
+# bottom edge chamfer and foot pockets for the clear TPU feet
+FOOT_R = 0.82 * P['pot_inr_bot'] / math.cos(math.radians(30))
+for k in range(6):
+    a = math.radians(60 * k)
+    planter = planter.cut(cyl(P['foot_pocket_d'] / 2, P['foot_pocket_h'] + 0.1, BOTZ - 0.1).translated(V(FOOT_R * math.cos(a), FOOT_R * math.sin(a), 0)))
+# floor: 4 cross pegs for the trunk-anchor sockets (1-stud grid) + 6 angled bosses with pegs for the daisy sockets
+def cross_peg(w, t, h):
+    a = Part.makeBox(w, t, h + 1, V(-w / 2, -t / 2, -1)); b = Part.makeBox(t, w, h + 1, V(-t / 2, -w / 2, -1))
+    return a.fuse(b).removeSplitter()
+trunk_axle_xy = [(4.0 * sx, 4.0 * sy) for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1))]
+for i, (x, y) in enumerate(trunk_axle_xy):
+    planter = planter.fuse(cross_peg(P['peg_w'], P['peg_t'], P['peg_h']).translated(V(x, y, FLOOR_TOP)))
+    m, xv, yv, zv = mat((x, y, FLOOR_TOP), (0, 0, -1))
+    anchor('axle_holes', m, xv, zv, 0, f'floor-trunk-{i}', 'planter')
+DAISY_LEAN, BOSS_H = 18.0, 2.0
+daisy_axes = []
+box_above_floor = Part.makeBox(400, 400, 300, V(-200, -200, FLOOR_TOP - 0.01))
+for k in range(6):
+    az = math.radians(30 + 60 * k); rb = 52.0
+    base = V(rb * math.cos(az), rb * math.sin(az), FLOOR_TOP)
+    d = V(math.sin(math.radians(DAISY_LEAN)) * math.cos(az), math.sin(math.radians(DAISY_LEAN)) * math.sin(az), math.cos(math.radians(DAISY_LEAN)))
+    mouth = base + d * (BOSS_H / math.cos(math.radians(DAISY_LEAN)) + 2.4)
+    mb, *_ = mat(mouth - d * 30, d)
+    planter = planter.fuse(placed(cyl(6.5, 30), mb).common(box_above_floor))
+    mp_, *_ = mat(mouth, d, (math.cos(az), math.sin(az), 0))
+    planter = planter.fuse(placed(cross_peg(P['peg_w'], P['peg_t'], P['peg_h']), mp_))
+    m, xv, yv, zv = mat(mouth, -d, (math.cos(az), math.sin(az), 0))
+    anchor('axle_holes', m, xv, zv, 0, f'floor-daisy-{k}', 'planter')
+    daisy_axes.append({'base': [base.x, base.y, base.z], 'dir': [d.x, d.y, d.z], 'az': math.degrees(az)})
+planter = planter.removeSplitter()
+
+# sakura motif: recessed pockets on the six outer faces, one paint colour per pocket group
+MOTIF = json.load(open(os.path.join(CAD, 'motif.json')))
+SLOPE = (P['pot_inr_top'] - P['pot_inr_bot']) / (TOPZ - BOTZ)
+TAN30 = math.tan(math.radians(30))
+def face_frame(k):
+    ph = math.radians(60 * k + 30)
+    nh = V(math.cos(ph), math.sin(ph), 0); t = V(-math.sin(ph), math.cos(ph), 0)
+    N = nh - V(0, 0, SLOPE); N.normalize()
+    return nh, t, N
+def motif_point(k, x, z, off=0.0):
+    nh, t, N = face_frame(k)
+    usable = 2 * inr_out(z) * TAN30 - 2 * P['motif_margin']
+    u = (x / MOTIF['face_w'] - 0.5) * usable
+    return nh * inr_out(z) + t * u + V(0, 0, z) + N * off
+motif_tools, paint = [], {}
+for pg in MOTIF['polys']:
+    k = pg['face']; _, _, N = face_frame(k)
+    def ring(pts, off): return Part.makePolygon([motif_point(k, x, z, off) for x, z in pts] + [motif_point(k, pts[0][0], pts[0][1], off)])
+    try:
+        # pockets are cut inward and downward at 45 degrees, so their top edges print as a 45-degree slope, not a ledge
+        nh, _, _ = face_frame(k); e = (nh + V(0, 0, 1)) * -1; e.normalize(); en = -e.dot(N)
+        fc_out = Part.makeFace([ring(pg['outer'], 0.5)] + [ring(h, 0.5) for h in pg['holes']], 'Part::FaceMakerBullseye')
+        motif_tools.append(fc_out.extrude(e * ((P['motif_depth'] + 0.5) / en)))
+        fc_in = Part.makeFace([ring(pg['outer'], -0.04)] + [ring(h, -0.04) for h in pg['holes']], 'Part::FaceMakerBullseye')
+        paint.setdefault(pg['cat'], []).append(fc_in.extrude(e * ((P['motif_depth'] - 0.1) / en)))   # render-only paint fill
+    except Exception as ex:
+        print('motif pocket skipped', k, ex)
+planter = chk(planter.cut(Part.makeCompound(motif_tools)), 'planter motif')
+planter = planter.removeSplitter()
+
+# ============================================================================ 2. SOIL PLATE: bone PLA core + black TPU 95A mat
+ST, MT = P['soil_t'], P['mat_t']
+def soil_slab(z0, z1):
+    sl = hex_loft(inr_out(z0) - W - P['soil_gap'], z0, inr_out(z1) - W - P['soil_gap'], z1)
+    try:
+        vert = [e for e in sl.Edges if abs(e.Vertexes[0].Z - e.Vertexes[-1].Z) > 1]
+        sl = sl.makeFillet(max(0.5, P['pot_corner_r'] - P['pot_wall'] - P['soil_gap']), vert)
+    except Exception as ex:
+        print('soil fillet skipped:', ex)
+    return sl
+core = soil_slab(-ST, -MT)
+mat_ = soil_slab(-MT, 0.0)
+boss = cyl(P['boss_r'], 6 + MT, -MT).fuse(Part.makeCone(P['boss_r'], 6.2, 5.6, V(0, 0, 6)))
+core = core.fuse(boss)                                   # the trunk sits on PLA, not on the soft mat
+mat_ = mat_.cut(cyl(P['boss_r'] + 0.3, MT + 2, -MT - 1))
+for (x, y) in trunk_axle_xy:
+    core = core.cut(cross(30, P['axle_w'], P['axle_t']).translated(V(x, y, -ST - 5)))
+    mat_ = mat_.cut(cross(30, P['tpu_axle_w'], P['tpu_axle_t']).translated(V(x, y, -ST - 5)))
+for k, da in enumerate(daisy_axes):
+    b = V(*da['base']); d = V(*da['dir'])
+    p = b + d * ((0 - b.z) / d.z)
+    m, *_ = mat(p - d * 15, d, (math.cos(math.radians(da['az'])), math.sin(math.radians(da['az'])), 0))
+    core = core.cut(placed(cross(30, P['axle_w'] + 0.1, P['axle_t'] + 0.1), m))
+    mat_ = mat_.cut(placed(cross(30, P['tpu_axle_w'], P['tpu_axle_t']), m))
+    da['soil_point'] = [p.x, p.y, p.z]
+stem_pts = [(40 * math.cos(math.radians(k * 360 / 7 + 8)), 40 * math.sin(math.radians(k * 360 / 7 + 8))) for k in range(7)] + \
+           [(70 * math.cos(math.radians(k * 360 / 11 + 20)), 70 * math.sin(math.radians(k * 360 / 11 + 20))) for k in range(11)]
+stem_pts = [(x, y) for (x, y) in stem_pts if min(math.hypot(x - d['soil_point'][0], y - d['soil_point'][1]) for d in daisy_axes) >= 9]
+for i, (x, y) in enumerate(stem_pts):
+    peg = cross_peg(P['tpu_peg_w'], P['tpu_peg_t'], P['peg_h'])
+    peg.rotate(V(0, 0, 0), V(0, 0, 1), math.degrees(math.atan2(y, x)))
+    mat_ = mat_.fuse(peg.translated(V(x, y, 0)))
+    m, xv, yv, zv = mat((x, y, 0), (0, 0, -1), (x, y, 0))
+    anchor('axle_holes', m, xv, zv, ST, f'soil-stem-{i}', 'soil')
+core = chk(core.removeSplitter(), 'soil core'); mat_ = chk(mat_.removeSplitter(), 'soil mat')
+soil = core.fuse(mat_)                                   # combined, for the LEGO fit checks only
+
+# ============================================================================ 3. TRUNK (PLA)
+TH = P['trunk_h']
+def trunk_c(z): return V(0.9 * math.sin(z / 40.0), 0.7 * math.sin(z / 55.0 + 1.0), z)
+def trunk_r(z): return lin(P['trunk_r0'], P['trunk_r1'], min(z, TH) / TH)
+secs = []
+for z in [-2.0] + [5.0 + 10 * k for k in range(20)] + [TH]:
+    c = trunk_c(z); secs.append(Part.Wire(Part.makeCircle(trunk_r(z), c, V(0, 0, 1))))
+for th in (25, 50, 70, 84):          # rounded crown as part of the same loft (no tangent sphere fuse)
+    r = trunk_r(TH); c = trunk_c(TH)
+    secs.append(Part.Wire(Part.makeCircle(r * math.cos(math.radians(th)), V(c.x, c.y, TH + r * math.sin(math.radians(th))), V(0, 0, 1))))
+trunk = Part.makeLoft(secs, True, False)
+trunk = chk(trunk, 'trunk loft')
+for k in range(5):     # root flare: frustum cones angling down and out
+    a = math.radians(k * 72 + 10)
+    p0 = V(4 * math.cos(a), 4 * math.sin(a), 16.0); p1 = V(25 * math.cos(a), 25 * math.sin(a), -3.0)
+    root = Part.makeCone(8.5, 4.0, (p1 - p0).Length, p0, (p1 - p0))
+    trunk = chk(trunk.fuse(root), f'root {k}')
+trunk = chk(trunk.common(Part.makeBox(400, 400, 400, V(-200, -200, 0))), 'trunk base cut')
+STUBS = [(118, 15, 38, 150, 30), (138, 95, 42, 135, 40), (156, 170, 40, 145, 34), (172, 250, 45, 125, 44), (190, 322, 50, 112, 48)]
+FW, STB, AT, STUB_L = P['face_w'], P['stub_t'], P['arm_t'], 24.0
+def ip_dn(ip): return ip                                    # 'inplane' points up; the face's lower edge is at -inplane
+POCKET_OFF, AXLE_OFF = -5.2, 5.8
+arms_meta = []
+for i, (h, az, el, L, rise) in enumerate(STUBS):
+    a, e = math.radians(az), math.radians(el)
+    d = V(math.cos(e) * math.cos(a), math.cos(e) * math.sin(a), math.sin(e))
+    side = V(-math.sin(a), math.cos(a), 0.0)
+    c0 = trunk_c(h)
+    face_c = c0 + d * (trunk_r(h) + STUB_L - 8)
+    inplane = d.cross(side)
+    m, xv, yv, zv = mat((face_c.x, face_c.y, face_c.z), (d.x, d.y, d.z), (inplane.x, inplane.y, inplane.z))
+    rect = Part.makePolygon([V(-FW / 2, -STB / 2, 0), V(FW / 2, -STB / 2, 0), V(FW / 2, STB / 2, 0), V(-FW / 2, STB / 2, 0), V(-FW / 2, -STB / 2, 0)])
+    rect.transformShape(m)
+    m0, *_ = mat((c0.x, c0.y, c0.z), (d.x, d.y, d.z), (inplane.x, inplane.y, inplane.z))
+    circ = Part.Wire(Part.makeCircle(trunk_r(h) * 0.72, V(0, 0, 0), V(0, 0, 1))); circ.transformShape(m0)
+    stub = Part.makeLoft([circ, rect], True, True)
+    trunk = chk(trunk.fuse(chk(stub, f'stub {i} loft')), f'stub {i} fuse')
+    # branch collar: a wedge under the stub whose underside is 45 degrees or steeper, so no supports are needed
+    hdir = V(d.x, d.y, 0); hdir.normalize()
+    reach = (face_c - c0).dot(hdir) + 1.0                 # horizontal distance trunk axis -> face
+    lowp = face_c - ip_dn(inplane) * (FW / 2 - 1.0)        # lowest point of the joint face
+    drop = reach * 1.05                                    # 45 deg + margin
+    quad = [lowp, c0 - V(0, 0, drop), c0, face_c]               # vertical section through the stub
+    w0 = [q - side * (STB / 2 - 0.6) for q in quad]; w1 = [q + side * (STB / 2 - 0.6) for q in quad]
+    try:
+        wedge = Part.makeLoft([Part.makePolygon(w0 + [w0[0]]), Part.makePolygon(w1 + [w1[0]])], True, True)
+        trunk = chk(trunk.fuse(wedge), f'collar {i}')
+    except Exception as ex:
+        print('collar skipped', i, ex)
+    arms_meta.append({'i': i, 'face_c': [face_c.x, face_c.y, face_c.z], 'd': [d.x, d.y, d.z], 'side': [side.x, side.y, side.z],
+                      'inplane': [inplane.x, inplane.y, inplane.z], 'L': L, 'rise': rise})
+# holes are cut after every stub is added, so nothing can fill a hole back in
+trunk = trunk.cut(cyl(P['boss_r'] + 0.3, 6, -0.01).fuse(Part.makeCone(P['boss_r'] + 0.3, 6.5, 6, V(0, 0, 5.99))))
+for am in arms_meta:
+    fc, d, ip = V(*am['face_c']), V(*am['d']), V(*am['inplane'])
+    m, xv, yv, zv = mat(tuple(fc + ip * POCKET_OFF), tuple(-d), tuple(ip))
+    trunk = trunk.cut(placed(cyl(P['sleeve_pocket_d'] / 2, P['sleeve_pocket_h'] + 0.1, -0.1), m))
+    anchor('pin_holes', m, xv, zv, P['sleeve_pocket_h'], f"stub-{am['i']}-pin", 'trunk')
+    m, xv, yv, zv = mat(tuple(fc + ip * AXLE_OFF), tuple(-d), tuple(ip))
+    trunk = trunk.cut(placed(cross(10, P['axle_w'], P['axle_t']), m))
+    anchor('axle_holes', m, xv, zv, 10, f"stub-{am['i']}-axle", 'trunk')
+ANCHOR_TOP = FLOOR_TOP + 16 + 256
+for i, (x, y) in enumerate(trunk_axle_xy):
+    m, xv, yv, zv = mat((x, y, 0), (0, 0, 1))
+    trunk = trunk.cut(placed(cross(ANCHOR_TOP + 0.6, P['axle_w'], P['axle_t']), m))
+    anchor('axle_holes', m, xv, zv, ANCHOR_TOP + 0.6, f'trunk-anchor-{i}', 'trunk')
+# keys: one pin per stub face at a unique offset, so each branch only fits its own stub (and only one way up)
+KEY_U, KEY_S = 1.45, [0.0, -1.2, 0.6, 1.8, -2.4]
+for am in arms_meta:
+    i = am['i']; fc, d, ip, side = V(*am['face_c']), V(*am['d']), V(*am['inplane']), V(*am['side'])
+    if d.cross(ip).dot(side) < 0: side = side * -1       # same handedness as the branch's print frame
+    am['side_key'] = [side.x, side.y, side.z]
+    base = fc + ip * KEY_U + side * KEY_S[i]
+    m, *_ = mat(tuple(base - d * 0.4), tuple(d), tuple(ip))
+    kp = cyl(P['key_d'] / 2, P['key_h'] + 0.4)
+    try: kp = kp.makeChamfer(0.3, [e for e in kp.Edges if e.Curve.__class__.__name__ == 'Circle' and e.Vertexes[0].Z > 0.1])
+    except Exception: pass
+    trunk = trunk.fuse(placed(kp, m))
+    for sg in (1, -1):                                     # stub number on both flat sides of the stub
+        so = V(*am['side']) * sg
+        org = fc - d * 3.4 + so * (P['stub_t'] / 2 + 0.35)
+        trunk = engrave(trunk, str(i + 1), 6.5, P['label_depth'] + 0.35, tuple(org), tuple(so), tuple(ip))
+tc = trunk_c(TH); top = V(tc.x, tc.y, TH + trunk_r(TH) * 0.95)
+m, xv, yv, zv = mat(tuple(top), (0, 0, -1))
+trunk = trunk.cut(placed(cross(10, P['axle_w'], P['axle_t']), m))
+anchor('axle_holes', m, xv, zv, 10, 'trunk-top', 'trunk')
+trunk = chk(trunk.removeSplitter(), 'trunk final')
+
+# ============================================================================ 4. BRANCHES (PLA, printed flat)
+def hull2d(pts):
+    pts = sorted(set((round(p[0], 4), round(p[1], 4)) for p in pts))
+    def cr(o, a, b): return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lo, up = [], []
+    for p in pts:
+        while len(lo) >= 2 and cr(lo[-2], lo[-1], p) <= 0: lo.pop()
+        lo.append(p)
+    for p in reversed(pts):
+        while len(up) >= 2 and cr(up[-2], up[-1], p) <= 0: up.pop()
+        up.append(p)
+    return lo[:-1] + up[:-1]
+def stadium(p0, r0, p1, r1, n=24):
+    pts = [(p0[0] + r0 * math.cos(2 * math.pi * k / n), p0[1] + r0 * math.sin(2 * math.pi * k / n)) for k in range(n)] + \
+          [(p1[0] + r1 * math.cos(2 * math.pi * k / n), p1[1] + r1 * math.sin(2 * math.pi * k / n)) for k in range(n)]
+    h = hull2d(pts)
+    return Part.Face(Part.makePolygon([V(x, y, 0) for x, y in h] + [V(h[0][0], h[0][1], 0)]))
+SIDE_HOLES, PIN_SPURS = [2, 2, 2, 2, 1], [3, 3, 2, 2, 2]
+arms = []
+for i, am in enumerate(arms_meta):
+    L, rise = am['L'], am['rise']; n = 24
+    ts = [k / n for k in range(n + 1)]
+    cx = [L * t for t in ts]
+    cy = [rise * (0.9 * t - 0.55 * t ** 2 + 0.65 * t ** 3) for t in ts]
+    w = [lin(FW, 9.0, t) for t in ts]
+    pieces = [stadium((cx[k], cy[k]), w[k] / 2, (cx[k + 1], cy[k + 1]), w[k + 1] / 2).extrude(V(0, 0, AT)) for k in range(n)]
+    for fr, ln, ang in ((0.35, 26, 55), (0.62, 20, -40)):
+        k = int(fr * n)
+        pieces.append(stadium((cx[k], cy[k]), 4.2, (cx[k] + ln * math.cos(math.radians(ang)), cy[k] + ln * math.sin(math.radians(ang))), 2.6).extrude(V(0, 0, AT)))
+    arm = pieces[0].multiFuse(pieces[1:]).removeSplitter()
+    arm = arm.cut(Part.makeBox(40, 80, AT + 2, V(-40, -40, -1)))
+    arm = Part.Solid(arm.Shells[0]) if len(arm.Solids) != 1 and arm.Shells else arm
+    for kind, off in (('pin', POCKET_OFF), ('axle', AXLE_OFF)):
+        m, *_ = mat((0, off, AT / 2), (1, 0, 0), (0, 1, 0))
+        arm = arm.cut(placed(cyl(P['hpin_d'] / 2, 16.9, -0.1) if kind == 'pin' else cross(10, P['haxle_w'], P['haxle_t']), m))
+    m, *_ = mat((-0.1, KEY_U, AT / 2 + KEY_S[i]), (1, 0, 0), (0, 1, 0))      # key hole for this stub's pin
+    arm = arm.cut(placed(cyl(P['key_hole_d'] / 2, P['key_h'] + 0.5), m))
+    tl = 25.0 / L; ya = math.atan2(rise * (0.9 - 1.1 * tl + 1.95 * tl * tl), L)
+    arm = engrave(arm, str(i + 1), 7.0, P['label_depth'], (25.0, rise * (0.9 * tl - 0.55 * tl ** 2 + 0.65 * tl ** 3), AT), (0, 0, 1), (-math.sin(ya), math.cos(ya), 0))
+    local = []
+    hole_ts = [0.48, 0.78] if SIDE_HOLES[i] == 2 else [0.62]
+    for t in hole_ts:
+        k = int(round(t * n)); local.append(('axle', cx[k], cy[k], t))
+        arm = arm.cut(cross(AT, P['axle_w'], P['axle_t']).translated(V(cx[k], cy[k], 0)))
+    nsp = PIN_SPURS[i]
+    for j in range(nsp):
+        t = 0.22 + (0.9 - 0.22) * (j + 1) / (nsp + 1)
+        k = int(round(t * n)); kk = min(n, k)
+        tx, ty = cx[min(n, kk + 1)] - cx[kk - 1], cy[min(n, kk + 1)] - cy[kk - 1]
+        ln_ = math.hypot(tx, ty); nl = (-ty / ln_, tx / ln_)
+        px, py = cx[kk] + nl[0] * w[kk] * 0.18, cy[kk] + nl[1] * w[kk] * 0.18
+        local.append(('pin', px, py, t))
+        arm = arm.cut(cyl(P['pin_d'] / 2, AT + 0.2, -0.1).translated(V(px, py, 0)))
+    tdx, tdy = cx[-1] - cx[-3], cy[-1] - cy[-3]; ln_ = math.hypot(tdx, tdy); tdx, tdy = tdx / ln_, tdy / ln_
+    tip = (cx[-1] + tdx * (w[-1] / 2 - 0.3), cy[-1] + tdy * (w[-1] / 2 - 0.3))
+    m, *_ = mat((tip[0], tip[1], AT / 2), (-tdx, -tdy, 0), (0, 0, 1))
+    arm = arm.cut(placed(cross(10, P['haxle_w'], P['haxle_t']), m))
+    arm = chk(arm.removeSplitter(), f'branch {i}')
+    # world placement of the printed (flat) branch
+    d, ip, side, fc = V(*am['d']), V(*am['inplane']), V(*am['side']), V(*am['face_c'])
+    side = V(*am['side_key'])
+    org = fc - side * (AT / 2)
+    Wm = App.Matrix(d.x, ip.x, side.x, org.x, d.y, ip.y, side.y, org.y, d.z, ip.z, side.z, org.z, 0, 0, 0, 1)
+    am['world'] = [[Wm.A11, Wm.A12, Wm.A13, Wm.A14], [Wm.A21, Wm.A22, Wm.A23, Wm.A24], [Wm.A31, Wm.A32, Wm.A33, Wm.A34]]
+    def Wp(x, y, z): return Wm.multVec(V(x, y, z))
+    def Wd(x, y, z): return Wm.multVec(V(x, y, z)) - Wm.multVec(V(0, 0, 0))
+    for kind, x, y, t in local:
+        for sgn, z in ((1, 0.0), (-1, AT)):
+            o = Wp(x, y, z); zd = Wd(0, 0, sgn); xd = Wd(1, 0, 0)
+            anchors['axle_holes' if kind == 'axle' else 'pin_holes'].append({
+                'label': f"arm-{i}-{kind}-{t:.2f}-{'a' if sgn > 0 else 'b'}", 'part': f'arm{i}',
+                'origin': [round(o.x, 3), round(o.y, 3), round(o.z, 3)], 'dir': [round(zd.x, 4), round(zd.y, 4), round(zd.z, 4)],
+                'x': [round(xd.x, 4), round(xd.y, 4), round(xd.z, 4)], 'depth': AT if kind == 'axle' else AT / 2})
+    o = Wp(tip[0], tip[1], AT / 2); zd = Wd(-tdx, -tdy, 0)
+    anchors['axle_holes'].append({'label': f'arm-{i}-tip', 'part': f'arm{i}', 'origin': [round(o.x, 3), round(o.y, 3), round(o.z, 3)],
+                                  'dir': [round(zd.x, 4), round(zd.y, 4), round(zd.z, 4)], 'x': [round(side.x, 4), round(side.y, 4), round(side.z, 4)], 'depth': 10})
+    arms.append(arm)
+
+# ============================================================================ 5. CLEAR TPU: feet and joint sleeves
+foot = cyl(P['foot_d'] / 2, P['foot_h'])
+try: foot = foot.makeChamfer(0.5, [e for e in foot.Edges if e.Curve.__class__.__name__ == 'Circle' and e.Vertexes[0].Z > 0.1])
+except Exception: pass
+sleeve = cyl(P['sleeve_od'] / 2, P['sleeve_l']).cut(cyl(P['sleeve_id'] / 2, P['sleeve_l'] + 1, -0.5))
+try: sleeve = sleeve.makeChamfer(0.4, [e for e in sleeve.Edges if e.Curve.__class__.__name__ == 'Circle' and e.Vertexes[0].Z > 0.1 and e.Curve.Radius < P['sleeve_od'] / 2 - 0.1])
+except Exception: pass
+
+# ============================================================================ 6. FIT-TEST KIT
+# Each piece copies how a real joint is printed (orientation, wall, material) and repeats it seven
+# times. Cell n uses (parameter + DELTAS[n-1]); the cell number is engraved next to it. Find the cell
+# that fits best and add its delta to the parameter(s) named in the README table.
+DELTAS = [-0.15, -0.10, -0.05, 0.0, 0.05, 0.10, 0.15]
+def label_row(shape, xs, y, z, size=4.0, depth=0.5, normal=(0, 0, 1), up=(0, 1, 0)):
+    for n, x in enumerate(xs):
+        shape = engrave(shape, str(n + 1), size, depth, (x, y, z), normal, up)
+    return shape
+PITCH = 12.0; XS = [7 + PITCH * n for n in range(7)]; LEN = XS[-1] + 7
+# FT1 floor pegs (PLA): cross pegs standing on a plate, like the planter floor -> peg_w, peg_t
+ft1 = Part.makeBox(LEN, 20, 3)
+for n, dv in enumerate(DELTAS):
+    ft1 = ft1.fuse(cross_peg(P['peg_w'] + dv, P['peg_t'] + dv, P['peg_h']).translated(V(XS[n], 13, 3)))
+ft1 = label_row(ft1.removeSplitter(), XS, 4.5, 3)
+# FT2 vertical holes (PLA): cross, pin and bar holes -> axle_w/t, pin_d, bar_d
+FT2_T = 6.0
+ft2 = Part.makeBox(LEN, 36, FT2_T)
+for n, dv in enumerate(DELTAS):
+    ft2 = ft2.cut(cross(FT2_T + 1, P['axle_w'] + dv, P['axle_t'] + dv).translated(V(XS[n], 8, -0.5)))
+    ft2 = ft2.cut(cyl((P['pin_d'] + dv) / 2, FT2_T + 1, -0.5).translated(V(XS[n], 17.5, 0)))
+    ft2 = ft2.cut(cyl((P['bar_d'] + dv) / 2, FT2_T + 1, -0.5).translated(V(XS[n], 25.5, 0)))
+ft2 = label_row(ft2, XS, 31.5, FT2_T)
+# FT3 branch root (PLA, 9 mm, printed flat): horizontal pin holes from the front, cross holes from the back -> hpin_d, haxle_w/t
+ft3 = Part.makeBox(LEN, 20, P['arm_t'])
+for n, dv in enumerate(DELTAS):
+    m, *_ = mat((XS[n], -0.1, P['arm_t'] / 2), (0, 1, 0), (1, 0, 0))
+    ft3 = ft3.cut(placed(cyl((P['hpin_d'] + dv) / 2, 8.1), m))
+    m, *_ = mat((XS[n], 20.1, P['arm_t'] / 2), (0, -1, 0), (1, 0, 0))
+    ft3 = ft3.cut(placed(cross(8, P['haxle_w'] + dv, P['haxle_t'] + dv), m))
+ft3 = label_row(ft3, XS, 10, P['arm_t'])
+# FT4 stub face (PLA, 45-degree face like the trunk stubs): sleeve pocket + cross hole per cell -> sleeve_pocket_d, axle_w/t
+SP = 17.0; XS4 = [9 + SP * n for n in range(7)]; LEN4 = XS4[-1] + 9; LEG = 22.0
+tri = Part.makePolygon([V(0, 0, 0), V(0, LEG, 0), V(0, LEG, LEG), V(0, 0, 0)])
+ft4 = Part.Face(tri).extrude(V(LEN4, 0, 0))               # 45-degree top face rising toward +y
+n45 = V(0, -1, 1); n45.normalize(); dn = V(0, 1, 1); dn.normalize()
+for n, dv in enumerate(DELTAS):
+    pk = V(XS4[n] - 3.2, 0, 0) + dn * 15.5
+    m, *_ = mat(tuple(pk + n45 * 0.1), tuple(n45 * -1), (1, 0, 0))
+    ft4 = ft4.cut(placed(cyl((P['sleeve_pocket_d'] + dv) / 2, P['sleeve_pocket_h'] + 0.1), m))
+    ax = V(XS4[n] + 5.3, 0, 0) + dn * 15.5
+    m, *_ = mat(tuple(ax + n45 * 0.1), tuple(n45 * -1), (0, 1, 1))
+    ft4 = ft4.cut(placed(cross(10, P['axle_w'] + dv, P['axle_t'] + dv), m))
+ft4 = label_row(ft4, XS4, LEG, 5.0, 5.0, 0.6, (0, 1, 0), (0, 0, 1))
+# FT5 foot pockets (PLA, pockets underneath like the planter) -> foot_pocket_d
+FP = 18.0; XS5 = [10 + FP * n for n in range(7)]; LEN5 = XS5[-1] + 10
+ft5 = Part.makeBox(LEN5, 20, 3.2)
+for n, dv in enumerate(DELTAS):
+    ft5 = ft5.cut(cyl((P['foot_pocket_d'] + dv) / 2, P['foot_pocket_h'] + 0.1, -0.1).translated(V(XS5[n], 10, 0)))
+ft5 = label_row(ft5, XS5, 10, 3.2)
+# FT6 soil mat (black TPU, mat thickness): stem pegs and axle pass-throughs -> tpu_peg_w/t, tpu_axle_w/t
+ft6 = Part.makeBox(LEN, 30, P['mat_t'])
+for n, dv in enumerate(DELTAS):
+    ft6 = ft6.fuse(cross_peg(P['tpu_peg_w'] + dv, P['tpu_peg_t'] + dv, P['peg_h']).translated(V(XS[n], 21, P['mat_t'])))
+    ft6 = ft6.cut(cross(P['mat_t'] + 1, P['tpu_axle_w'] + dv, P['tpu_axle_t'] + dv).translated(V(XS[n], 8, -0.5)))
+ft6 = label_row(ft6.removeSplitter(), [x + 4.6 for x in XS], 14, P['mat_t'], 3.5, 0.5)
+# FT7 sleeves (clear TPU): seven sleeves on a thin numbered web -> sleeve_id; plus two feet to try in FT5
+ft7 = Part.makeBox(LEN, 22, 0.8)
+for n, dv in enumerate(DELTAS):
+    sl = cyl(P['sleeve_od'] / 2, P['sleeve_l']).cut(cyl((P['sleeve_id'] + dv) / 2, P['sleeve_l'] + 1, -0.5))
+    ft7 = ft7.fuse(sl.translated(V(XS[n], 15, 0))).cut(cyl((P['sleeve_id'] + dv) / 2, 2, -0.5).translated(V(XS[n], 15, 0)))
+    ft7 = ft7.fuse(text_solid(str(n + 1), 3.5, 0.0).common(Part.makeBox(10, 10, 0.5, V(-5, -5, 0))).translated(V(XS[n], 5, 0.8)))
+for k in range(2):
+    ft7 = ft7.fuse(foot.translated(V(LEN + 10 + 17 * k, 11, 0)))
+ft7 = ft7.removeSplitter()
+FIT_TESTS = [('FT1_FloorPegs', ft1, 'PLA'), ('FT2_VerticalHoles', ft2, 'PLA'), ('FT3_BranchRoot', ft3, 'PLA'),
+             ('FT4_StubFace', ft4, 'PLA'), ('FT5_FootPockets', ft5, 'PLA'), ('FT6_SoilMat', ft6, 'TPU black'), ('FT7_Sleeves', ft7, 'TPU clear')]
+
+# ============================================================================ document, exports, anchors
+PARTS = [  # name, shape, material, print placement (matrix applied for the STL/STEP in print orientation)
+    ('Planter', planter, 'eSUN PLA+ Bone White', App.Matrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -BOTZ, 0, 0, 0, 1)),
+    ('SoilCore', core, 'eSUN PLA+ Bone White', App.Matrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, ST, 0, 0, 0, 1)),
+    ('SoilMat', mat_, 'TPU 95A Black', App.Matrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, MT, 0, 0, 0, 1)),
+    ('Trunk', trunk, 'eSUN PLA+ Bone White', App.Matrix()),
+] + [(f'Branch{i + 1}', a, 'eSUN PLA+ Bone White', App.Matrix()) for i, a in enumerate(arms)] + [
+    ('Foot', foot, 'TPU 95A Clear (print 6)', App.Matrix()),
+    ('JointSleeve', sleeve, 'TPU 95A Clear (print 5)', App.Matrix()),
+] + [(n, sh, {'PLA': 'eSUN PLA+ Bone White', 'TPU black': 'TPU 95A Black', 'TPU clear': 'TPU 95A Clear (print 5)'}[mt], App.Matrix()) for n, sh, mt in FIT_TESTS]
+COLORS = {'eSUN PLA+ Bone White': (0.93, 0.90, 0.82), 'TPU 95A Black': (0.08, 0.08, 0.08),
+          'TPU 95A Clear (print 6)': (0.85, 0.90, 0.92), 'TPU 95A Clear (print 5)': (0.85, 0.90, 0.92)}
+def colourise(o, material):
+    if App.GuiUp and material in COLORS:
+        o.ViewObject.ShapeColor = COLORS[material]
+        if 'Clear' in material: o.ViewObject.Transparency = 55
+import Mesh, MeshPart, Import
+report = {}
+grp = doc.addObject('App::DocumentObjectGroup', 'PrintedParts')
+asm = doc.addObject('App::DocumentObjectGroup', 'Assembly')
+for name, shape, material, pm in PARTS:
+    ok = shape.isValid()
+    pshape = shape.copy(); pshape.transformShape(pm)        # print orientation, sitting on z = 0
+    o = doc.addObject('Part::Feature', name); o.Shape = pshape; grp.addObject(o)
+    o.addProperty('App::PropertyString', 'Material', 'Sakura'); o.Material = material
+    colourise(o, material)
+    bb = pshape.BoundBox
+    stl = os.path.join(OUT, f'{name}.stl'); step = os.path.join(OUT, f'{name}.step')
+    mesh = MeshPart.meshFromShape(Shape=pshape, LinearDeflection=0.02, AngularDeflection=0.12, Relative=False)
+    mesh.write(stl)
+    Import.export([o], step)
+    if name in ('Planter', 'SoilCore', 'SoilMat', 'Trunk'):      # world-frame copy for the LEGO fit pipeline and renders
+        MeshPart.meshFromShape(Shape=shape, LinearDeflection=0.02, AngularDeflection=0.12, Relative=False).write(os.path.join(OUT, f'{name}_world.stl'))
+    over = 0.0
+    for f_ in pshape.Faces:
+        try:
+            u0, u1, v0, v1 = f_.ParameterRange; nrm = f_.normalAt((u0 + u1) / 2, (v0 + v1) / 2); nrm = nrm * (-1 if f_.Orientation == 'Reversed' else 1)
+            cz = f_.CenterOfMass.z
+            if nrm.z < -0.7072 and cz > bb.ZMin + 0.4: over += f_.Area
+        except Exception: pass
+    report[name] = {'material': material, 'valid': ok, 'overhang_mm2_gt45': round(over, 1), 'volume_cm3': round(shape.Volume / 1000, 2),
+                    'bbox_mm': [round(bb.XLength, 1), round(bb.YLength, 1), round(bb.ZLength, 1)], 'solids': len(shape.Solids),
+                    'mesh_closed': bool(mesh.isSolid()), 'triangles': mesh.CountFacets}
+MeshPart.meshFromShape(Shape=soil, LinearDeflection=0.02, AngularDeflection=0.12, Relative=False).write(os.path.join(OUT, 'SoilPlate_world.stl'))
+for cat, sols in paint.items():                     # render-only: the paint in the motif pockets, world frame
+    MeshPart.meshFromShape(Shape=Part.makeCompound(sols), LinearDeflection=0.02, AngularDeflection=0.2, Relative=False).write(os.path.join(OUT, f'Paint_{cat}_world.stl'))
+# assembly copies in world position (for checking fits in FreeCAD)
+for name, shape, material, pm in PARTS[:9]:
+    s = shape.copy()
+    if name.startswith('Branch'):
+        Wm = arms_meta[int(name[-1]) - 1]['world']
+        M = App.Matrix(*Wm[0], *Wm[1], *Wm[2], 0, 0, 0, 1); s.transformShape(M)
+    a = doc.addObject('Part::Feature', 'Asm_' + name); a.Shape = s; asm.addObject(a); colourise(a, material)
+for k in range(6):                                   # clear TPU feet in their pockets
+    ang = math.radians(60 * k); s = foot.copy()
+    s.translate(V(FOOT_R * math.cos(ang), FOOT_R * math.sin(ang), BOTZ - (P['foot_h'] - P['foot_pocket_h'])))
+    a = doc.addObject('Part::Feature', f'Asm_Foot{k + 1}'); a.Shape = s; asm.addObject(a); colourise(a, 'TPU 95A Clear (print 6)')
+for k, h in enumerate([h for h in anchors['pin_holes'] if h['label'].startswith('stub-') and h['label'].endswith('-pin')]):
+    m_, _, _, _ = mat(h['origin'], h['dir'], h['x']); s = placed(sleeve, m_)   # clear TPU sleeves in the stub pockets
+    a = doc.addObject('Part::Feature', f'Asm_Sleeve{k + 1}'); a.Shape = s; asm.addObject(a); colourise(a, 'TPU 95A Clear (print 5)')
+doc.recompute()
+doc.saveAs(doc_path)
+anchors['daisy_axes'] = daisy_axes; anchors['arms'] = arms_meta; anchors['stem_points'] = stem_pts
+anchors['trunk_top'] = [top.x, top.y, top.z]
+anchors['dims'] = {'planter_top_z': TOPZ, 'planter_bottom_z': BOTZ, 'floor_top_z': FLOOR_TOP, 'trunk_h': TH, 'foot_r': FOOT_R,
+                   'pot_inr_bot': P['pot_inr_bot'], 'pot_inr_top': P['pot_inr_top']}
+anchors['params'] = P
+json.dump(anchors, open(os.path.join(OUT, 'anchors.json'), 'w'), indent=1)
+json.dump(report, open(os.path.join(OUT, 'fc_report.json'), 'w'), indent=1)
+for k, v in report.items(): print(k, v)
+print(len(anchors['axle_holes']), 'axle holes', len(anchors['pin_holes']), 'pin holes', len(stem_pts), 'stems')

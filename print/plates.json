@@ -1,0 +1,544 @@
+[
+ {
+  "id": "01",
+  "file": "plates/01_fit-kit-pla.3mf",
+  "title": "Fit-test kit, PLA (FT1-FT5)",
+  "material": "eSUN PLA+ Bone White",
+  "mat": "PLA",
+  "parts": [
+   "FT1_FloorPegs",
+   "FT2_VerticalHoles",
+   "FT3_BranchRoot",
+   "FT4_StubFace",
+   "FT5_FootPockets"
+  ],
+  "fuzzy": false,
+  "settings": {
+   "perimeters": 3,
+   "fill_density": "25%",
+   "fill_pattern": "gyroid",
+   "top_solid_layers": 5
+  },
+  "items": [
+   [
+    "FT1_FloorPegs",
+    0.0,
+    125.0,
+    47.0
+   ],
+   [
+    "FT2_VerticalHoles",
+    0.0,
+    125.0,
+    82.0
+   ],
+   [
+    "FT3_BranchRoot",
+    0.0,
+    125.0,
+    117.0
+   ],
+   [
+    "FT4_StubFace",
+    0.0,
+    125.0,
+    145.0
+   ],
+   [
+    "FT5_FootPockets",
+    0.0,
+    125.0,
+    173.0
+   ]
+  ],
+  "bbox": [
+   [
+    61.0,
+    37.0,
+    0.0
+   ],
+   [
+    189.0,
+    183.0,
+    22.0
+   ]
+  ],
+  "volume_cm3": 65.59,
+  "estimate": {
+   "time": "2h 42m 42s",
+   "seconds": 9762,
+   "grams": 59.8,
+   "metres": 20.06,
+   "layers": 109,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ },
+ {
+  "id": "02",
+  "file": "plates/02_fit-kit-tpu-black.3mf",
+  "title": "Fit-test kit, black TPU (FT6)",
+  "material": "TPU 95A Black",
+  "mat": "TPU black",
+  "parts": [
+   "FT6_SoilMat"
+  ],
+  "fuzzy": false,
+  "settings": {
+   "perimeters": 3,
+   "fill_density": "100%",
+   "fill_pattern": "rectilinear",
+   "top_solid_layers": 5
+  },
+  "items": [
+   [
+    "FT6_SoilMat",
+    0.0,
+    125.0,
+    110.0
+   ]
+  ],
+  "bbox": [
+   [
+    82.0,
+    95.0,
+    0.0
+   ],
+   [
+    168.0,
+    125.0,
+    9.1
+   ]
+  ],
+  "volume_cm3": 4.71,
+  "estimate": {
+   "time": "34m 31s",
+   "seconds": 2071,
+   "grams": 6.3,
+   "metres": 2.13,
+   "layers": 46,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ },
+ {
+  "id": "03",
+  "file": "plates/03_fit-kit-tpu-clear.3mf",
+  "title": "Fit-test kit, clear TPU (FT7)",
+  "material": "TPU 95A Clear",
+  "mat": "TPU clear",
+  "parts": [
+   "FT7_Sleeves"
+  ],
+  "fuzzy": false,
+  "settings": {
+   "perimeters": 3,
+   "fill_density": "100%",
+   "fill_pattern": "rectilinear",
+   "top_solid_layers": 5
+  },
+  "items": [
+   [
+    "FT7_Sleeves",
+    0.0,
+    125.0,
+    110.0
+   ]
+  ],
+  "bbox": [
+   [
+    64.9,
+    99.0,
+    0.0
+   ],
+   [
+    185.1,
+    121.0,
+    8.6
+   ]
+  ],
+  "volume_cm3": 4.14,
+  "estimate": {
+   "time": "29m 46s",
+   "seconds": 1786,
+   "grams": 5.5,
+   "metres": 1.85,
+   "layers": 43,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ },
+ {
+  "id": "04",
+  "file": "plates/04_planter.3mf",
+  "title": "Planter",
+  "material": "eSUN PLA+ Bone White",
+  "mat": "PLA",
+  "parts": [
+   "Planter"
+  ],
+  "fuzzy": false,
+  "settings": {
+   "perimeters": 3,
+   "fill_density": "15%",
+   "fill_pattern": "gyroid",
+   "top_solid_layers": 5
+  },
+  "items": [
+   [
+    "Planter",
+    0.0,
+    125.0,
+    110.0
+   ]
+  ],
+  "bbox": [
+   [
+    11.5,
+    10.8,
+    0.0
+   ],
+   [
+    238.5,
+    209.2,
+    95.0
+   ]
+  ],
+  "volume_cm3": 244.44,
+  "estimate": {
+   "time": "7h 11m 46s",
+   "seconds": 25906,
+   "grams": 250.2,
+   "metres": 83.89,
+   "layers": 475,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ },
+ {
+  "id": "05",
+  "file": "plates/05_trunk.3mf",
+  "title": "Trunk",
+  "material": "eSUN PLA+ Bone White",
+  "mat": "PLA",
+  "parts": [
+   "Trunk"
+  ],
+  "fuzzy": true,
+  "settings": {
+   "perimeters": 4,
+   "fill_density": "25%",
+   "fill_pattern": "gyroid",
+   "top_solid_layers": 5,
+   "brim_width": 5,
+   "brim_type": "outer_only"
+  },
+  "items": [
+   [
+    "Trunk",
+    0.0,
+    125.0,
+    110.0
+   ]
+  ],
+  "bbox": [
+   [
+    93.2,
+    80.1,
+    0.0
+   ],
+   [
+    156.8,
+    139.9,
+    218.8
+   ]
+  ],
+  "volume_cm3": 171.04,
+  "estimate": {
+   "time": "7h 31m 37s",
+   "seconds": 27097,
+   "grams": 132.4,
+   "metres": 44.4,
+   "layers": 1094,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ },
+ {
+  "id": "06",
+  "file": "plates/06_branches.3mf",
+  "title": "Branches 1-5",
+  "material": "eSUN PLA+ Bone White",
+  "mat": "PLA",
+  "parts": [
+   "Branch1",
+   "Branch2",
+   "Branch3",
+   "Branch4",
+   "Branch5"
+  ],
+  "fuzzy": true,
+  "settings": {
+   "perimeters": 4,
+   "fill_density": "25%",
+   "fill_pattern": "gyroid",
+   "top_solid_layers": 5
+  },
+  "items": [
+   [
+    "Branch1",
+    0.0,
+    84.5,
+    49.914
+   ],
+   [
+    "Branch2",
+    2.26893,
+    175.485,
+    77.045
+   ],
+   [
+    "Branch3",
+    3.83972,
+    52.531,
+    116.315
+   ],
+   [
+    "Branch4",
+    4.71239,
+    213.0,
+    115.914
+   ],
+   [
+    "Branch5",
+    3.83972,
+    105.392,
+    131.072
+   ]
+  ],
+  "bbox": [
+   [
+    7.2,
+    27.2,
+    0.0
+   ],
+   [
+    242.8,
+    192.8,
+    9.0
+   ]
+  ],
+  "volume_cm3": 99.39,
+  "estimate": {
+   "time": "3h 55m 33s",
+   "seconds": 14133,
+   "grams": 83.0,
+   "metres": 27.84,
+   "layers": 45,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ },
+ {
+  "id": "07",
+  "file": "plates/07_soil-core.3mf",
+  "title": "Soil core",
+  "material": "eSUN PLA+ Bone White",
+  "mat": "PLA",
+  "parts": [
+   "SoilCore"
+  ],
+  "fuzzy": false,
+  "settings": {
+   "perimeters": 2,
+   "fill_density": "15%",
+   "fill_pattern": "gyroid",
+   "top_solid_layers": 4
+  },
+  "items": [
+   [
+    "SoilCore",
+    0.0,
+    125.0,
+    110.0
+   ]
+  ],
+  "bbox": [
+   [
+    20.4,
+    19.1,
+    0.0
+   ],
+   [
+    229.6,
+    200.9,
+    19.6
+   ]
+  ],
+  "volume_cm3": 182.99,
+  "estimate": {
+   "time": "3h 1m 16s",
+   "seconds": 10876,
+   "grams": 88.8,
+   "metres": 29.79,
+   "layers": 98,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ },
+ {
+  "id": "08",
+  "file": "plates/08_soil-mat.3mf",
+  "title": "Soil mat",
+  "material": "TPU 95A Black",
+  "mat": "TPU black",
+  "parts": [
+   "SoilMat"
+  ],
+  "fuzzy": false,
+  "settings": {
+   "perimeters": 3,
+   "fill_density": "100%",
+   "fill_pattern": "rectilinear",
+   "top_solid_layers": 4
+  },
+  "items": [
+   [
+    "SoilMat",
+    0.0,
+    125.0,
+    110.0
+   ]
+  ],
+  "bbox": [
+   [
+    19.9,
+    18.7,
+    -0.0
+   ],
+   [
+    230.1,
+    201.3,
+    9.1
+   ]
+  ],
+  "volume_cm3": 46.97,
+  "estimate": {
+   "time": "5h 19m 37s",
+   "seconds": 19177,
+   "grams": 62.9,
+   "metres": 21.27,
+   "layers": 46,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ },
+ {
+  "id": "09",
+  "file": "plates/09_feet-and-sleeves.3mf",
+  "title": "Feet x6 and joint sleeves x5",
+  "material": "TPU 95A Clear",
+  "mat": "TPU clear",
+  "parts": [
+   "Foot",
+   "Foot",
+   "Foot",
+   "Foot",
+   "Foot",
+   "Foot",
+   "JointSleeve",
+   "JointSleeve",
+   "JointSleeve",
+   "JointSleeve",
+   "JointSleeve"
+  ],
+  "fuzzy": false,
+  "settings": {
+   "perimeters": 3,
+   "fill_density": "100%",
+   "fill_pattern": "rectilinear",
+   "top_solid_layers": 5
+  },
+  "items": [
+   [
+    "Foot",
+    0.0,
+    62.5,
+    95.0
+   ],
+   [
+    "Foot",
+    0.0,
+    87.5,
+    95.0
+   ],
+   [
+    "Foot",
+    0.0,
+    112.5,
+    95.0
+   ],
+   [
+    "Foot",
+    0.0,
+    137.5,
+    95.0
+   ],
+   [
+    "Foot",
+    0.0,
+    162.5,
+    95.0
+   ],
+   [
+    "Foot",
+    0.0,
+    187.5,
+    95.0
+   ],
+   [
+    "JointSleeve",
+    0.0,
+    75,
+    125.0
+   ],
+   [
+    "JointSleeve",
+    0.0,
+    100,
+    125.0
+   ],
+   [
+    "JointSleeve",
+    0.0,
+    125,
+    125.0
+   ],
+   [
+    "JointSleeve",
+    0.0,
+    150,
+    125.0
+   ],
+   [
+    "JointSleeve",
+    0.0,
+    175,
+    125.0
+   ]
+  ],
+  "bbox": [
+   [
+    55.4,
+    87.9,
+    0.0
+   ],
+   [
+    194.6,
+    129.8,
+    8.6
+   ]
+  ],
+  "volume_cm3": 4.03,
+  "estimate": {
+   "time": "28m 39s",
+   "seconds": 1719,
+   "grams": 5.3,
+   "metres": 1.8,
+   "layers": 43,
+   "slicer": "PrusaSlicer-2.7.2"
+  }
+ }
+]
