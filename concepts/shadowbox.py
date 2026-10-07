@@ -335,4 +335,116 @@ SUM.append(S.report({'size': SIZE,
     'idea': 'A dense garden wall: one long vine climbs in an S carrying every bouquet flower, a short ground vine runs along the bottom with the ground cover, and the cherry bough leans in from the top-right corner.',
     'fabric': 'Fabric on the two sides, top and bottom, clipped to the frame; the printed back wall carries a raised moon and two mist bands to paint.'}))
 
+
+# ======================================================================= 5. Screen walls: no fabric, printed walls with large openings, the axles as their frame
+from shapely.geometry import Polygon, Point, LineString, box as sbox
+from shapely.ops import unary_union, nearest_points
+from shapely import affinity
+WALL_T = 2.4
+SCREEN_Y = YB - WALL_T / 2                 # back wall sits on the back axles' plane; its front face:
+SCREEN_FACE = SCREEN_Y - WALL_T / 2
+
+def grid_holes(r, border, nx, ny, bar):
+    x0, z0, x1, z1 = r.bounds; x0 += border; z0 += border; x1 -= border; z1 -= border
+    cw = (x1 - x0 - (nx - 1) * bar) / nx; ch = (z1 - z0 - (ny - 1) * bar) / ny
+    return unary_union([sbox(x0 + i * (cw + bar), z0 + j * (ch + bar), x0 + i * (cw + bar) + cw, z0 + j * (ch + bar) + ch) for i in range(nx) for j in range(ny)])
+
+def diag_holes(r, border, pitch, bar):
+    inner = r.buffer(-border, join_style=2); x0, z0, x1, z1 = r.bounds; L = (x1 - x0) + (z1 - z0)
+    bars = []
+    for k in np.arange(-L, L, pitch):
+        bars.append(LineString([(x0 + k, z0), (x0 + k + L, z0 + L)]).buffer(bar / 2, cap_style=2))
+        bars.append(LineString([(x0 + k, z1), (x0 + k + L, z1 - L)]).buffer(bar / 2, cap_style=2))
+    return inner.difference(unary_union(bars))
+
+def moon_holes(r, cx, cz, rad, bars_x=(), bar=4):
+    c = Point(cx, cz).buffer(rad, 96)
+    for x in bars_x: c = c.difference(sbox(x - bar / 2, cz - rad - 1, x + bar / 2, cz + rad + 1))
+    return c
+
+def arch_holes(r, border, w, gap=0):
+    x0, z0, x1, z1 = r.bounds; cx = (x0 + x1) / 2
+    out = []
+    xs = [cx] if not gap else [cx - (w + gap) / 2, cx + (w + gap) / 2]
+    for x in xs:
+        body = sbox(x - w / 2, z0 + border, x + w / 2, z1 - border - w / 2)
+        out.append(body.union(Point(x, z1 - border - w / 2).buffer(w / 2, 64)))
+    return unary_union(out)
+
+def slot_holes(r, border, n, bar, along='x'):
+    x0, z0, x1, z1 = r.bounds
+    if along == 'x': return grid_holes(r, border, 1, n, bar)
+    return grid_holes(r, border, n, 1, bar)
+
+def place_wall(poly, M, offset):
+    m = trimesh.creation.extrude_polygon(poly, WALL_T); m.apply_translation([0, 0, -WALL_T / 2])
+    Tm = np.eye(4); Tm[:3, :3] = M; Tm[:3, 3] = offset; m.apply_transform(Tm)
+    if np.linalg.det(M) < 0: m.invert()
+    return m
+
+class Screened(Box):
+    def frame_screen(self):
+        for y in (YF, YB):
+            for sx in (-1, 1): self.axle32((sx * H, y, ZC), (0, 0, 1))
+            for sz in (-1, 1): self.axle32((0, y, ZC + sz * H), (1, 0, 0))
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                for y in DEPTH_Y: self.part('26287', 'Dark Green', frame((0, 1, 0)), (sx * H, y, ZC + sz * H), 'Structure: depth connector')
+                for y in (YF, YB): self.mesh(box([NODE] * 3, (sx * H, y, ZC + sz * H)), 'pla', 'Corner node')
+
+    def walls(self, back, side, top, bottom):
+        """Each argument: a function(rect) -> openings polygon. Walls run axle to axle, so the beams frame every opening."""
+        rb = sbox(-H, ZC - H, H, ZC + H)
+        self.back_poly = rb.difference(back(rb))
+        self.mesh(place_wall(self.back_poly, np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0.0]]), (0, SCREEN_Y, 0)), 'pla', 'Back screen (printed flat)')
+        rs = sbox(YF, ZC - H, YB, ZC + H); ps = rs.difference(side(rs))
+        for sx in (-1, 1):
+            self.mesh(place_wall(ps, np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0.0]]), (sx * H, 0, 0)), 'pla', 'Side screen (printed flat)')
+        rt = sbox(-H, YF, H, YB)
+        for f, z in ((top, ZC + H), (bottom, ZC - H)):
+            pt = rt.difference(f(rt))
+            self.mesh(place_wall(pt, np.eye(3), (0, 0, z)), 'pla', 'Top / floor screen (printed flat)')
+
+    def posts_to_wall(self, V, idx):
+        for i in idx:
+            a = V[i]; q = Point(a[0], a[2])
+            if not self.back_poly.buffer(-3).contains(q): q = nearest_points(self.back_poly.buffer(-3.5), q)[0]
+            b = np.array([q.x, SCREEN_FACE, q.y])
+            self.mesh(seg_cyl(a + [0, 6, 0], b, 3.2), 'pla', 'Vine post (printed on the back screen)')
+            self.mesh(cyl(6, 2.0, (q.x, SCREEN_FACE - 1, q.y), (0, 1, 0), 24), 'pla', 'Post foot')
+
+def screen_box(name, title, back, side, top, bottom, desc):
+    S = Screened(name, title)
+    S.frame_screen(); S.walls(back, side, top, bottom)
+    S.name = name + '_bare'; S.save({}); S.name = name                     # the empty box, to show the screens
+    LO[:] = (-131.0, -60.0, ZC - H + 3); HI[:] = (131.0, SCREEN_FACE - 1.5, ZC + H - 3)
+    V, Tn = S.vine([(-128, 30, 30), (-70, 24, 64), (10, 20, 70), (84, 22, 104), (104, 24, 152), (44, 22, 186), (-46, 22, 190), (-100, 24, 222), (-80, 28, 262)])
+    S.posts_to_wall(V, [3, 7, 11, 15])
+    VA = V
+    V2, T2 = S.vine([(128, 30, 26), (70, 24, 34), (0, 22, 30), (-60, 24, 36)])
+    S.posts_to_wall(V2, [2])
+    S.knots = [(VA, Tn)]
+    S.vine_pts = np.vstack([q['p'] for q in S.lego if q['role'].startswith('Vine')])
+    S.bough('branch_1', (128, 30, 250), range(165, 240, 5))
+    along(S, VA, [('roses_1', .05, 1, 60), ('daisies_1', .1, -1, 70), ('poppies_1', .16, 1, 70), ('foliage_1', .2, -1, 25), ('aster_1', .26, 1, 70),
+                  ('daisies_2', .32, -1, 70), ('lavender_1', .37, 1, 15), ('roses_2', .43, -1, 60), ('daisies_4', .49, 1, 70), ('poppies_2', .55, -1, 70),
+                  ('lavender_2', .6, 1, 15), ('daisies_5', .66, -1, 70), ('roses_3', .72, 1, 60), ('foliage_2', .77, -1, 25), ('daisies_6', .83, 1, 70),
+                  ('lavender_3', .9, -1, 15), ('daisies_3', 1, 1, 70)])
+    S.knots = [(V2, T2)]
+    along(S, V2, [('ground cover_1', .2, 1, (0, -0.4, 1)), ('ground cover_2', .45, 1, (0.2, -0.4, 1)), ('ground cover_3', .7, 1, (-0.2, -0.4, 1)), ('ground cover_4', .95, 1, (0, -0.5, 1))])
+    SUM.append(S.report({'size': SIZE, 'idea': desc, 'fabric': 'None: printed screen walls.'}))
+
+screen_box('sc_shoji', 'Shoji screens',
+           back=lambda r: grid_holes(r, 10, 5, 5, 5), side=lambda r: grid_holes(r, 10, 2, 5, 5),
+           top=lambda r: grid_holes(r, 10, 5, 2, 5), bottom=lambda r: grid_holes(r, 10, 5, 2, 5),
+           desc='Shoji: an even grid of square openings on every wall.')
+screen_box('sc_moon', 'Moon window',
+           back=lambda r: moon_holes(r, 30, ZC + 24, 104, bars_x=(-20, 30, 80)), side=lambda r: arch_holes(r, 14, 74),
+           top=lambda r: slot_holes(r, 14, 3, 12, 'x'), bottom=lambda r: slot_holes(r, 14, 3, 12, 'x'),
+           desc='Marumado: a round window in the back with three slim bars; arched windows in the sides; slotted top and floor.')
+screen_box('sc_ranma', 'Ranma lattice',
+           back=lambda r: diag_holes(r, 10, 46, 5), side=lambda r: diag_holes(r, 10, 46, 5),
+           top=lambda r: diag_holes(r, 10, 46, 5), bottom=lambda r: diag_holes(r, 10, 46, 5),
+           desc='Ranma: a diagonal lattice of large diamonds on every wall.')
+
 json.dump([{k: v for k, v in s.items() if k not in ('lego', 'printed')} for s in SUM], open(os.path.join(W, 'sb_summary.json'), 'w'), indent=1)
