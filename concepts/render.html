@@ -1,0 +1,102 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#BFAE90}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../docs/vendor/three.module.min.js"}}</script></head><body><canvas id="c"></canvas>
+<script>const q=new URLSearchParams(location.search);document.write('<script src="work/'+q.get('c')+'.js"><\/script>')</script>
+<script type="module">
+// Concept mock-up renderer: ?c=<concept>&w=&h=&az=&el=&dist=&ty=
+import * as THREE from 'three';
+import { RGBELoader } from '../docs/vendor/RGBELoader.js';
+const q = new URLSearchParams(location.search), Wd = +(q.get('w') || 1200), Ht = +(q.get('h') || 900);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(Wd, Ht); renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 0.88;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#BFAE90');
+const camera = new THREE.PerspectiveCamera(30, Wd / Ht, 5, 9000);
+const FLOOR_Y = 0;
+function linenTextures(size = 1024, pitch = 8) {
+  const n = size / pitch, rnd = mulberry(7);
+  const noise = () => { const k = 32, a = Array.from({ length: k }, () => rnd()); return t => { const x = (t * k) % k, i = Math.floor(x), f = x - i, s = f * f * (3 - 2 * f); return a[i] * (1 - s) + a[(i + 1) % k] * s; }; };
+  const warp = Array.from({ length: n }, () => ({ w: noise(), slub: noise(), tint: 0.93 + rnd() * 0.12 }));
+  const weft = Array.from({ length: n }, () => ({ w: noise(), slub: noise(), tint: 0.93 + rnd() * 0.12 }));
+  const H = new Float32Array(size * size), C = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const i = Math.floor(x / pitch), j = Math.floor(y / pitch), u = (x % pitch + 0.5) / pitch - 0.5, v = (y % pitch + 0.5) / pitch - 0.5;
+    const A = warp[i], B = weft[j];
+    const sa = Math.max(0, A.slub(y / size) - 0.72) * 2.2, sb = Math.max(0, B.slub(x / size) - 0.72) * 2.2;
+    const hwA = 0.3 + 0.12 * A.w(y / size) + 0.18 * sa, hwB = 0.3 + 0.12 * B.w(x / size) + 0.18 * sb;
+    const inA = Math.abs(u) < hwA, inB = Math.abs(v) < hwB, warpTop = (i + j) % 2 === 0;
+    let h = 0, tint = 0.8;
+    const profA = inA ? Math.cos(Math.PI * u / (2 * hwA)) : 0, profB = inB ? Math.cos(Math.PI * v / (2 * hwB)) : 0;
+    if (inA && (warpTop || !inB)) { h = profA * (0.75 + 0.25 * Math.cos(Math.PI * v)); tint = A.tint * (1 + 0.06 * sa); }
+    else if (inB) { h = profB * (0.75 + 0.25 * Math.cos(Math.PI * u)); tint = B.tint * (1 + 0.06 * sb); }
+    H[y * size + x] = h;
+    const shade = (0.8 + 0.2 * h) * tint, o = (y * size + x) * 4;
+    C[o] = 184 * shade; C[o + 1] = 174 * shade; C[o + 2] = 158 * shade; C[o + 3] = 255;
+  }
+  const N = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const hx = H[y * size + (x + 1) % size] - H[y * size + (x - 1 + size) % size], hy = H[((y + 1) % size) * size + x] - H[((y - 1 + size) % size) * size + x];
+    const nx = -hx * 1.6, ny = -hy * 1.6, l = Math.hypot(nx, ny, 1), o = (y * size + x) * 4;
+    N[o] = (nx / l * 0.5 + 0.5) * 255; N[o + 1] = (ny / l * 0.5 + 0.5) * 255; N[o + 2] = (1 / l * 0.5 + 0.5) * 255; N[o + 3] = 255;
+  }
+  const mk = (data, srgb) => { const t = new THREE.DataTexture(data, size, size); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.generateMipmaps = true;
+    t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; return t; };
+  return { map: mk(C, true), normalMap: mk(N, false) };
+}
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function sweepGeometry(tile = 210) {
+  // floor toward the camera (+z), a curved cove, then a wall behind (-z); UVs follow the cloth so the weave stays even
+  const prof = [], R = 650;
+  for (let z = 1900; z > -450; z -= 50) prof.push([z, 0]);
+  for (let k = 0; k <= 24; k++) { const a = k / 24 * Math.PI / 2; prof.push([-450 - Math.sin(a) * R, R - Math.cos(a) * R]); }
+  for (let y = R + 100; y <= 3000; y += 100) prof.push([-450 - R, y]);
+  const xs = [-3000, -1500, 0, 1500, 3000], pos = [], uv = [], idx = [];
+  let s = 0; const S = [0];
+  for (let k = 1; k < prof.length; k++) { s += Math.hypot(prof[k][0] - prof[k - 1][0], prof[k][1] - prof[k - 1][1]); S.push(s); }
+  prof.forEach(([z, y], k) => xs.forEach(x => { pos.push(x, y, z); uv.push(x / tile, -S[k] / tile); }));
+  const W = xs.length;
+  for (let k = 0; k < prof.length - 1; k++) for (let c = 0; c < W - 1; c++) {
+    const a = k * W + c, b = a + 1, d = a + W, e = d + 1; idx.push(a, d, b, b, d, e);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+
+const rig = new THREE.Group(); scene.add(rig);
+const key = new THREE.DirectionalLight(0xfff1e2, 1.5); key.position.set(-520, 900, 640); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.8;
+Object.assign(key.shadow.camera, { left: -500, right: 500, top: 700, bottom: -300, near: 200, far: 2600 });
+rig.add(key); rig.add(key.target); key.target.position.set(0, 150, 0);
+const fill = new THREE.DirectionalLight(0xe8f0ff, 0.35); fill.position.set(700, 300, 300); rig.add(fill);
+const linen = linenTextures();
+const sweep = new THREE.Mesh(sweepGeometry(), new THREE.MeshStandardMaterial({ ...linen, roughness: 0.92, normalScale: new THREE.Vector2(0.7, 0.7), side: THREE.DoubleSide }));
+sweep.receiveShadow = true; rig.add(sweep);
+const D = window.CONCEPT;
+function b64(s) { const bin = atob(s), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
+function geom(g) { if (!g) return null; const qq = new Int16Array(b64(g.b).buffer), pos = new Float32Array(qq.length); for (let i = 0; i < qq.length; i++) pos[i] = qq[i] / 32767 * g.s;
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.computeVertexNormals(); return geo; }
+const mc = {};
+const lego = hex => mc[hex] || (mc[hex] = new THREE.MeshPhysicalMaterial({ color: hex, roughness: 0.3, clearcoat: 0.35, clearcoatRoughness: 0.25, side: THREE.DoubleSide }));
+const PM = { pla: new THREE.MeshPhysicalMaterial({ color: '#E2D5BC', roughness: 0.58 }), tpu: new THREE.MeshPhysicalMaterial({ color: '#141414', roughness: 0.85 }),
+  clear: new THREE.MeshPhysicalMaterial({ color: '#DCE6E8', roughness: 0.3, transmission: 0.9, transparent: true }),
+  cloth: new THREE.MeshStandardMaterial({ color: '#EEE7D7', roughness: 0.95, side: THREE.DoubleSide }), cloth_border: new THREE.MeshStandardMaterial({ color: '#46564D', roughness: 0.95, side: THREE.DoubleSide }) };
+const buckets = {}; const geo = {};
+D.inst.forEach(r => { const k = r[0] + '|' + r[1]; (buckets[k] = buckets[k] || []).push(r); });
+const m4 = new THREE.Matrix4();
+Object.values(buckets).forEach(list => { const pid = list[0][0], g = D.geoms[pid]; geo[pid] = geo[pid] || { inh: geom(g.inh), fixed: g.fixed.map(f => ({ c: f.c, g: geom(f.g) })) };
+  const add = (gg, hex) => { if (!gg) return; const im = new THREE.InstancedMesh(gg, lego(hex), list.length); im.castShadow = im.receiveShadow = true;
+    list.forEach((r, i) => { const e = r.slice(2); m4.set(e[0], e[1], e[2], e[9], e[3], e[4], e[5], e[10], e[6], e[7], e[8], e[11], 0, 0, 0, 1); im.setMatrixAt(i, m4); }); scene.add(im); };
+  add(geo[pid].inh, list[0][1]); geo[pid].fixed.forEach(f => add(f.g, f.c)); });
+const fab = {};
+function fabric(kind) { return fab[kind] || (fab[kind] = new THREE.MeshStandardMaterial({ color: kind.split(':')[1], roughness: 0.96, normalMap: linen.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), side: THREE.DoubleSide })); }
+function planarUV(g) { const p = g.attributes.position, uv = new Float32Array(p.count * 2), n = g.attributes.normal;
+  for (let i = 0; i < p.count; i++) { const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
+    const [u, v] = az >= ax && az >= ay ? [p.getX(i), p.getY(i)] : ax >= ay ? [p.getZ(i), p.getY(i)] : [p.getX(i), p.getZ(i)]; uv[2 * i] = u / 26; uv[2 * i + 1] = v / 26; }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return g; }
+D.printed.forEach(p => { const isF = p.kind.startsWith('fabric:'), g = geom(p); if (isF) planarUV(g); const isP = p.kind.startsWith('paint:'); const m = new THREE.Mesh(g, isF ? fabric(p.kind) : isP ? (fab[p.kind] = fab[p.kind] || new THREE.MeshStandardMaterial({ color: p.kind.split(':')[1], roughness: 0.75 })) : (PM[p.kind] || PM.pla)); m.castShadow = true; m.receiveShadow = true; scene.add(m); });
+const az = THREE.MathUtils.degToRad(+(q.get('az') || 25)), el = THREE.MathUtils.degToRad(+(q.get('el') || 12)), dist = +(q.get('dist') || 1150), ty = +(q.get('ty') || 190);
+camera.position.set(dist * Math.cos(el) * Math.sin(az), ty + dist * Math.sin(el), dist * Math.cos(el) * Math.cos(az)); camera.lookAt(0, ty, 0);
+rig.rotation.y = az;
+new RGBELoader().load('../docs/assets/studio_small_03_1k.hdr', tex => { const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(tex).texture; scene.environmentIntensity = 0.55;
+  renderer.render(scene, camera); renderer.render(scene, camera); window.done = true; });
+</script></body></html>
