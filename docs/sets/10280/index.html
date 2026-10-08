@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-theme="bouquet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flower Bouquet 10280, step by step</title>
+<meta name="description" content="Unofficial 3D step-by-step build of LEGO 10280 Flower Bouquet, laid out like the printed instructions.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../lib/manual.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%23E58FB0'%3E%3Ccircle cx='16' cy='9' r='6'/%3E%3Ccircle cx='23' cy='14' r='6'/%3E%3Ccircle cx='20' cy='22' r='6'/%3E%3Ccircle cx='12' cy='22' r='6'/%3E%3Ccircle cx='9' cy='14' r='6'/%3E%3C/g%3E%3C/svg%3E">
+<script type="importmap">{"imports": {"three": "../../vendor/three.module.min.js"}}</script>
+</head>
+<body>
+<div id="stage" aria-label="3D view of the current step. Drag to turn, scroll to zoom."></div>
+<div class="mult" id="mult">2x</div>
+
+<header class="top">
+  <span class="set">10280 Flower Bouquet<small>unofficial 3D steps</small></span>
+  <label><span class="sr" hidden>Section</span><select id="section" aria-label="Jump to a section"></select></label>
+  <nav class="links"><a href="../40725/">40725 Cherry Blossoms</a><a href="../../">Sakura Planter</a></nav>
+</header>
+
+<aside class="left">
+  <div class="parts" id="parts" aria-label="Pieces for this step"></div>
+  <div class="stepno" id="stepno" aria-live="polite"></div>
+  <div class="icons">
+    <svg class="rotate" id="rotate" viewBox="0 0 60 60" role="img" aria-label="Turn the model around"><ellipse cx="30" cy="30" rx="20" ry="8" fill="none" stroke="#14202B" stroke-width="2.5"/><path d="M30 10 A20 20 0 1 1 13 40" fill="none" stroke="#14202B" stroke-width="2.5"/><path d="M13 40 l-2-9 9 4z" fill="#14202B"/><path d="M47 26 l3 8-8-2z" fill="#14202B"/></svg>
+    <div class="oneone" id="oneone"><svg></svg><b>1:1</b><button type="button">calibrate</button></div>
+  </div>
+</aside>
+
+<aside class="note">
+  <h1 id="title"></h1>
+  <p id="note"></p>
+  <p id="pdflink"></p>
+  <p class="fine">Unofficial fan rebuild in 3D. LEGO is a trademark of the LEGO Group, which does not sponsor or endorse this page; the official instructions are linked, not copied.</p>
+</aside>
+
+<footer class="bottom">
+  <button id="prev" type="button">Back</button>
+  <div class="progress"><span id="count"></span><div class="track"><i id="bar"></i><b id="dot"></b></div><span id="left"></span></div>
+  <label class="toggle"><input type="checkbox" id="hl" checked> Highlight new</label>
+  <button id="next" type="button" class="primary">Next</button>
+</footer>
+
+<div class="spin" id="spin"><p></p></div>
+<div class="calib" id="calib"><div>
+  <b>Set the 1:1 size</b>
+  <p>Hold a bank card against the screen and drag until the dashed box is exactly as wide as the card.</p>
+  <div class="card" id="card"></div>
+  <input type="range" id="cardsize" min="200" max="700" step="1" aria-label="Card width on screen">
+  <p><button id="calibdone" type="button">Done</button></p>
+</div></div>
+<div class="loading" id="loading">Loading the model</div>
+
+<script src="data/set.js"></script>
+<script>
+window.SETCFG = {
+  set: '10280', theme: 'bouquet',
+  pdf: 'https://www.lego.com/cdn/product-assets/product.bi.core.pdf/6532379.pdf',
+  sections: [
+    { model: 'daisy', title: 'Daisies', bag: 1, mult: 2, pdf: 14 },
+    { model: 'rose_head', title: 'Rose heads', bag: 1, mult: 3, pdf: 19 },
+    { model: 'rose_stem_curved', title: 'Rose stems, curved', bag: 1, mult: 2, pdf: 26 },
+    { model: 'rose_stem_straight', title: 'Rose stem, straight', bag: 1, mult: 1, pdf: 31 },
+    { model: 'roses', title: 'Roses together', bag: 1, count: false, pdf: 35, note: 'Push a rose head onto each stem.' },
+    { model: 'poppy', title: 'California poppy', bag: 2, mult: 1, pdf: 37 },
+    { model: 'grass', title: 'Grass', bag: 2, mult: 2, pdf: 43 },
+    { model: 'snap_head', title: 'Snapdragon heads', bag: 2, mult: 2, pdf: 48 },
+    { model: 'snap_stem_curved', title: 'Snapdragon stem, curved', bag: 2, mult: 1, pdf: 55 },
+    { model: 'snap_stem_straight', title: 'Snapdragon stem, straight', bag: 2, mult: 1, pdf: 59 },
+    { model: 'snapdragons', title: 'Snapdragons together', bag: 2, count: false, pdf: 62, note: 'Push a head onto each stem.' },
+    { model: 'lavender', title: 'Lavender', bag: 3, mult: 1, pdf: 64 },
+    { model: 'big_leaf', title: 'Large leaves', bag: 3, mult: 3, pdf: 68 },
+    { model: 'aster', title: 'Aster', bag: 3, mult: 1, pdf: 74 },
+  ],
+  final: { model: 'bouquet', title: 'The bouquet' },
+};
+</script>
+<script type="module" src="../lib/viewer.js"></script>
+</body>
+</html>

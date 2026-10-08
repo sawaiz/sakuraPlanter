@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Step preview</title>
+<style>html,body{margin:0;background:#fff}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script></head><body>
+<script>const q=new URLSearchParams(location.search);document.write('<script src="'+q.get('set')+'/data/set.js"><\/script>')</script>
+<script type="module">
+// Development preview: ?set=40725&model=branch_white&step=3&az=-30&el=20&w=800&h=800&bg=%23d6eaf8&zoom=1
+import * as THREE from 'three';
+import { makePart, modelRoot, stepParts, edgeMaterial, condMaterial, Outliner } from './lib/scene.js';
+const q = new URLSearchParams(location.search), W = +(q.get('w') || 800), H = +(q.get('h') || 800);
+const SET = window.SET, model = SET.models[q.get('model') || Object.keys(SET.models)[0]];
+const step = q.has('step') ? +q.get('step') : model.steps.length - 1;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(W, H); renderer.setPixelRatio(1);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(q.get('bg') || '#d6eaf8');
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.6)); const d = new THREE.DirectionalLight(0xffffff, 1.6); d.position.set(-1, 2, 1.5); scene.add(d);
+const style = {}; const mats = { edge: edgeMaterial(style), cond: condMaterial(style) };
+const root = modelRoot(); scene.add(root);
+const { have, fresh } = stepParts(model, step); const freshObjs = [];
+for (const i of have) { const o = makePart(SET, model.parts[i], style, mats); root.add(o); if (fresh.includes(i)) freshObjs.push(o); }
+root.updateMatrixWorld(true);
+const box = new THREE.Box3().setFromObject(root), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()).length();
+const cam = new THREE.PerspectiveCamera(20, W / H, 1, 1e5);
+const az = THREE.MathUtils.degToRad(+(q.get('az') ?? -30)), el = THREE.MathUtils.degToRad(+(q.get('el') ?? 20)), dist = s / (2 * Math.tan(THREE.MathUtils.degToRad(10))) / (+(q.get('zoom') || 1)) * 1.05;
+cam.position.set(c.x + dist * Math.cos(el) * Math.sin(az), c.y + dist * Math.sin(el), c.z + dist * Math.cos(el) * Math.cos(az)); cam.lookAt(c);
+renderer.render(scene, cam);
+if (q.get('hl') !== '0') new Outliner(renderer, '#ffe500', 3).render(scene, cam, freshObjs);
+window.done = true;
+</script></body></html>

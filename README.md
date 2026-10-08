@@ -9,6 +9,8 @@ Designed in FreeCAD for the **Prusa CORE One** (0.4 mm HF nozzle) in **eSUN PLA+
 
 **[Open the 3D assembly guide →](https://sawaiz.github.io/sakuraPlanter/)** Turn the model and step through the build. The page lives in [`docs/`](docs/).
 
+The two original sets also have their own step-by-step 3D pages, laid out like the printed manuals: **[10280 Flower Bouquet](https://sawaiz.github.io/sakuraPlanter/sets/10280/)** and **[40725 Cherry Blossoms](https://sawaiz.github.io/sakuraPlanter/sets/40725/)**. See [The original sets, step by step](#the-original-sets-step-by-step).
+
 | | |
 |---|---|
 | LEGO pieces | 1,193 of 1,194 from the two sets (the brick separator is a tool) |
@@ -29,7 +31,8 @@ Designed in FreeCAD for the **Prusa CORE One** (0.4 mm HF nozzle) in **eSUN PLA+
 6. [Design notes](#design-notes)
 7. [Changing the design and rebuilding everything](#changing-the-design)
 8. [The 3D assembly page](#the-3d-assembly-page)
-9. [Credits and licences](#credits-and-licences)
+9. [The original sets, step by step](#the-original-sets-step-by-step)
+10. [Credits and licences](#credits-and-licences)
 
 ## What you need
 
@@ -532,6 +535,19 @@ Renders: `python tools/render/prep_render.py`, then `python tools/render/blender
 [`docs/index.html`](https://sawaiz.github.io/sakuraPlanter/) shows the model on a procedurally generated linen sweep, lit by a studio HDR. Every step animates its pieces into place, earlier steps fade back (switch that off with *Fade earlier*), and the side panel lists the exact pieces. Use the arrow keys or the blossoms along the bottom to move between steps, drag to turn, scroll to zoom, and double-click to reset the view. Links to a step work, for example `#s7`.
 
 To publish it: **Settings ▸ Pages ▸ Deploy from a branch ▸ `main` / `docs`**. To preview it locally: `cd docs && python -m http.server`, then open http://localhost:8000.
+
+## The original sets, step by step
+
+Before you take the sets apart for the planter, you may want to build them as LEGO designed them. [`docs/sets/`](docs/sets/) holds a 3D page for each set that follows its printed manual step by step: [10280 Flower Bouquet](https://sawaiz.github.io/sakuraPlanter/sets/10280/) (grey pages, thin white boxes) and [40725 Cherry Blossoms](https://sawaiz.github.io/sakuraPlanter/sets/40725/) (light blue pages, rounded blue and yellow boxes).
+
+- **Steps.** Each page has the same steps, sub-builds ("2x" boxes) and turn-the-model icons as the manual, and its step numbers restart for each flower or branch.
+- **Highlighting.** New pieces are outlined. Click a piece in the parts box to see it turn, and to make the same pieces in the model flash.
+- **Size check.** Axles get a 1:1 check that you calibrate once with a bank card.
+- **Progress.** The page remembers where you stopped and counts the pieces still to go.
+- **The manuals.** The official instructions are on lego.com: [10280 (6532379.pdf)](https://www.lego.com/cdn/product-assets/product.bi.core.pdf/6532379.pdf), [10280 info booklet](https://www.lego.com/cdn/product-assets/product.bi.additional.info.pdf/10280_EN_Info_Booklet.pdf) and [40725 (6554062.pdf)](https://www.lego.com/cdn/product-assets/product.bi.core.pdf/6554062.pdf). Every step links to its manual page; nothing from the manuals is copied.
+- **How the models were made.** They are rebuilt in LDraw from the manual pictures by the scripts in [`instructions/`](instructions/): `s10280.py` and `s40725.py` place every piece, and `pack.py` packs the geometry for the pages.
+- **Accuracy.** No official 3D model of either set exists, so the piece positions are close but not exact; follow the manual where the two differ.
+- **Trademarks.** LEGO is a trademark of the LEGO Group, which does not sponsor or endorse this project.
 
 ## Credits and licences
 
