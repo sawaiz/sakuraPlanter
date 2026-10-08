@@ -77,13 +77,13 @@ def daisy():
 # ---------------------------------------------------------------- bag 1: roses (3 heads, 2 curved stems, 1 straight)
 WHEEL_RING_R, WHEEL_RING_Y = 40.0, -5.0       # 67811: ring centre radius and height in its own frame
 
-def petal_frame(a, phi, tilt_out=False):
+def petal_frame(a, phi, inward=False):
     """Petal clipped to a ring at azimuth a: local X along the ring's tangent, its studs facing out, its tip
     (local -Z) pointing up, leaning in by phi degrees (out if phi < 0)."""
     r = dirdeg(a, 0); T = np.cross(UP, r); ph = math.radians(phi)
     n = r * math.cos(ph) + UP * math.sin(ph); tip = UP * math.cos(ph) - r * math.sin(ph)
-    M = np.column_stack([T, -n, -tip])
-    if np.linalg.det(M) < 0: M = np.column_stack([-T, -n, -tip])
+    M = np.column_stack([T, n if inward else -n, -tip])
+    if np.linalg.det(M) < 0: M = np.column_stack([-M[:, 0], M[:, 1], M[:, 2]])
     return M, r
 
 def rose_head():
@@ -118,7 +118,7 @@ def rose_head():
     P8.add('11476', 'Light Nougat', RY(180), (0, 8, -6)); P8.step()
     hinge = np.array([0, 10, 20.0])
     for k in range(4):
-        M, r = petal_frame(45 + 90 * k, -18); P = r * (WHEEL_RING_R + 2) + np.array([0, -18 + WHEEL_RING_Y, 0])
+        M, r = petal_frame(45 + 90 * k, 4); P = r * (WHEEL_RING_R + 2) + np.array([0, -18 + WHEEL_RING_Y, 0])
         m.place(P8, M, P - M @ hinge)
     m.step(callout=P8, mult=4, view=dict(az=-30, el=35, min=80))
     # outer petals: mudguard + clip plate, clipped to the lower wheel from below
@@ -126,7 +126,7 @@ def rose_head():
     P9.add('98835', 'Light Nougat'); P9.step(); P9.add('11476', 'Light Nougat', RY(180), (0, -8, -6)); P9.step()
     hinge9 = np.array([0, -6, 20.0])
     for k in range(4):
-        M, r = petal_frame(90 * k, -48); P = r * (WHEEL_RING_R + 4) + np.array([0, WHEEL_RING_Y + 6, 0])
+        M, r = petal_frame(90 * k, -20); P = r * (WHEEL_RING_R + 8) + np.array([0, WHEEL_RING_Y + 4, 0])
         m.place(P9, M, P - M @ hinge9)
     m.step(callout=P9, mult=4, rotate=True, view=dict(az=-20, el=-35, min=80))
     m.add('30374', 'Reddish Brown', np.eye(3), (0, 6, 0)); m.step(view=dict(az=-30, el=-20, min=80))
@@ -210,10 +210,12 @@ def clip_ring(r=31.0, y=2.0, n=8, a0=0.0):
         a = a0 + 360 * k / n; rd = dirdeg(a, 0); out.append((rd * r + np.array([0, y, 0]), np.cross(UP, rd), rd))
     return out
 
-def clip_on(m, sub, spot, hinge, up_deg=35, spin=0.0):
+def clip_on(m, sub, spot, hinge, up_deg=35, spin=0.0, out=False):
     """Clip a small sub-build (clip hinge at `hinge` in its frame, clip axis local X, face local -Y) onto a bar,
-    facing outward and tipped up by up_deg."""
+    facing outward and tipped up by up_deg. out=True: the clip is on the sub-build's top, so its body (local +Y)
+    hangs outward from the bar instead."""
     p, t, rd = spot; face = unit(rd * math.cos(math.radians(up_deg)) + UP * math.sin(math.radians(up_deg)))
+    if out: face = -face
     M = align((0, -1, 0), face, (1, 0, 0), t); M = rot(face, spin) @ M
     return m.place(sub, M, p - M @ hinge)
 
@@ -244,7 +246,7 @@ def poppy():
     P7 = Model('poppy_petal_top', 'Large petal')
     P7.add('93604', 'Orange'); P7.step(); P7.add('2540', 'Orange', np.eye(3), (0, 8, 4)); P7.step()
     for k in range(4):
-        rd = dirdeg(45 + 90 * k, 0); M = petal_frame(45 + 90 * k, -78)[0]
+        rd = dirdeg(45 + 90 * k, 0); M = petal_frame(45 + 90 * k, -66, inward=True)[0]
         m.place(P7, M, rd * 34 + np.array([0, -70, 0]) - M @ np.array([0, 10, 18]))
     m.step(callout=P7, mult=4, view=dict(az=-30, el=40, min=80))
     Bp = np.column_stack([[0, 0, 1.0], [1.0, 0, 0], [0, 1.0, 0]])          # 32016 with its straight leg up into the flower
@@ -296,13 +298,13 @@ def snap_head():
     F12 = Model('snap_bell', 'Bell'); F12.add('15469', 'Magenta', np.eye(3), (0, 0, 0)); F12.step(); F12.add('553', 'Magenta', np.eye(3), (0, -4, 0)); F12.add('15712', SG, np.eye(3), (0, -16, 0)); F12.step()
     hinge10, hinge12 = np.array([0, -18, 0.0]), np.array([0, -22, 0.0])
     spots_hi, spots_mid, spots_lo = frame_spots(-64, 36), frame_spots(-32, 36), frame_spots(0, 36)
-    for k in range(4): clip_on(m, F10, spots_hi[2 * k], hinge10, up_deg=10)
+    for k in range(4): clip_on(m, F10, spots_hi[2 * k], hinge10, up_deg=25, out=True)
     m.step(callout=F10, mult=4)
-    for k in range(4): clip_on(m, F10, spots_mid[2 * k + 1], hinge10, up_deg=0)
+    for k in range(4): clip_on(m, F10, spots_mid[2 * k + 1], hinge10, up_deg=10, out=True)
     m.step(callout=F10, mult=4)
-    for k in range(4): clip_on(m, F12, spots_mid[2 * k], hinge12, up_deg=-20)
+    for k in range(4): clip_on(m, F12, spots_mid[2 * k], hinge12, up_deg=-10, out=True)
     m.step(callout=F12, mult=4)
-    for k in range(4): clip_on(m, F12, spots_lo[2 * k + 1], hinge12, up_deg=-30)
+    for k in range(4): clip_on(m, F12, spots_lo[2 * k + 1], hinge12, up_deg=-30, out=True)
     m.step(callout=F12, mult=4, view=dict(az=-30, el=15))
     return m, [T7, B9, F10, F12]
 

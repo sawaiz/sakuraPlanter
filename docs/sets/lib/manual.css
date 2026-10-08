@@ -89,14 +89,39 @@ body.sub .note .fine { display: none; }
 
 .loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--ink-soft); }
 
+/* phones: a manual page in portrait. Parts box and step number in a band above the model, the model below,
+   sub-builds in a full-width box, buttons at the bottom within thumb reach. */
 @media (max-width: 760px) {
-  .left { width: 120px; top: 56px; }
-  .parts img { width: 48px; height: 40px; }
-  .stepno { font-size: 44px; }
-  .note { display: none; }
-  body.sub #stage { inset: 110px 10px 90px 136px; }
-  .mult { right: 22px; bottom: 98px; font-size: 44px; }
-  .top select { max-width: 40vw; }
-  .top .links a:not(:first-child) { display: none; }
+  html, body { font-size: 14px; }
+  .top { height: 44px; padding: 0 10px; gap: 8px; }
+  .top .set small, .top .links { display: none; }
+  .top .set { font-size: 13px; white-space: nowrap; }
+  .top select { margin-left: auto; max-width: 52vw; font-size: 13px; }
+  #stage { inset: 160px 0 70px 0; }
+  body.sub #stage { inset: 164px 8px 76px 8px; }
+  .left { left: 10px; right: 10px; top: 48px; width: auto; flex-direction: row; align-items: flex-start; gap: 10px; }
+  .parts { display: flex; flex-wrap: nowrap; overflow-x: auto; max-width: 62vw; min-height: 0; padding: 4px; gap: 2px; scrollbar-width: none; }
+  .parts:empty { display: none; }
+  .parts img { width: 52px; height: 42px; }
+  .parts span { font-size: 11px; }
+  .stepno { font-size: 44px; min-width: 56px; }
+  .stepno small { font-size: 11px; margin-top: 2px; max-width: 30vw; }
+  .icons { position: fixed; top: 124px; left: 10px; gap: 6px; }
+  .rotate { width: 40px; height: 40px; }
+  .oneone { padding: 3px 6px; }
+  .oneone b { font-size: 16px; }
+  .note { display: block; top: auto; bottom: 66px; left: 10px; right: 10px; width: auto; text-align: left; font-size: 12px; pointer-events: none; }
+  .note h1, .note #note, .note .fine { display: none; }
+  .note a { pointer-events: auto; }
+  body.sub .note { bottom: 80px; left: 18px; color: #3A3F44; }
+  body.sub .note a { color: #14202B; }
+  .mult { right: 22px; bottom: 96px; font-size: 44px; }
+  .bottom { left: 8px; right: 8px; bottom: 10px; gap: 8px; }
+  .bottom button { padding: 12px 18px; min-width: 76px; }
+  .progress { flex-direction: column; align-items: stretch; gap: 4px; font-size: 11px; }
+  .progress #count, .progress #left { text-align: center; }
+  .progress #left { display: none; }
+  .progress .track { flex: none; width: 100%; }
   .bottom .toggle { display: none; }
+  .spin { left: 50% !important; top: 160px !important; transform: translateX(-50%); }
 }

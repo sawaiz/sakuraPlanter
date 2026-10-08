@@ -66,6 +66,7 @@ class Model:
         self.parts = []          # {'pid','col','M','t','step'}
         self.steps = []          # {'new': [part idx], 'callout': {...} or None, 'meta': {...}}
         self.pending = []
+        self.groups = []
         self.callout = None
 
     def add(self, pid, col, M=np.eye(3), t=(0, 0, 0)):
@@ -79,13 +80,15 @@ class Model:
         M = np.asarray(M, float); t = np.asarray(t, float); out = []
         for p in sub.parts:
             out.append(self.add(p['pid'], p['col'], M @ p['M'], M @ p['t'] + t))
+        self.groups.append(out)
         return out
 
     def step(self, callout=None, mult=None, **meta):
         """Close a step. callout: a sub-build Model shown in the step's callout box (with mult, e.g. 2 for '2x')."""
         s = {'new': self.pending, 'meta': meta}
         if callout is not None: s['callout'] = {'model': callout.name, 'mult': mult or 1}
-        self.steps.append(s); self.pending = []
+        if callout is not None and self.groups: s['groups'] = [g for g in self.groups if g and g[0] in set(self.pending)]
+        self.steps.append(s); self.pending = []; self.groups = []
         return len(self.steps)
 
     def T(self, i):

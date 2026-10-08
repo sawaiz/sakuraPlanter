@@ -36,13 +36,39 @@ export function partGeometry(SET, pid) {
 
 // ---------------------------------------------------------------- materials
 const matCache = new Map();
+// ABS plastic: a glossy clear coat over a slightly satin base, so the studio environment shows as soft highlights.
+const METAL = { 297: { metalness: 0.75, roughness: 0.32 }, 334: { metalness: 0.8, roughness: 0.25 }, 383: { metalness: 0.85, roughness: 0.2 } };
 export function partMaterial(SET, code, style) {
-  const k = code + '|' + style.shading;
+  const k = code + '|' + (style.shading || 'abs');
   if (matCache.has(k)) return matCache.get(k);
-  const col = (SET.colours[code] || ['#888888'])[0];
-  const m = new THREE.MeshStandardMaterial({ color: col, roughness: style.roughness ?? 0.55, metalness: code === 297 ? 0.45 : 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, side: THREE.DoubleSide });
+  const col = (SET.colours[code] || ['#888888'])[0], met = METAL[code];
+  const m = new THREE.MeshPhysicalMaterial({
+    color: col, roughness: met ? met.roughness : 0.34, metalness: met ? met.metalness : 0,
+    clearcoat: met ? 0.2 : 0.65, clearcoatRoughness: 0.12, specularIntensity: 0.6, envMapIntensity: 1.0,
+    polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, side: THREE.DoubleSide });
   matCache.set(k, m); return m;
 }
+
+// Soft studio lighting: an HDR environment for reflections plus a key light that casts soft shadows.
+export function studio(renderer, scene, hdrUrl, opts = {}) {
+  renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = opts.exposure ?? 1.0;
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x9aa4ae, opts.hemi ?? 0.55); scene.add(hemi);
+  const key = new THREE.DirectionalLight(0xfff6ec, opts.key ?? 1.9); key.position.set(-1.2, 2.2, 1.6);
+  if (opts.shadows) {
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.6; key.shadow.radius = 4;
+  }
+  scene.add(key); scene.add(key.target);
+  const rim = new THREE.DirectionalLight(0xe8f0ff, opts.rim ?? 0.6); rim.position.set(1.4, 0.6, -1.6); scene.add(rim);
+  const ready = import('../../vendor/RGBELoader.js').then(({ RGBELoader }) => new Promise(res => {
+    new RGBELoader().load(hdrUrl, tex => {
+      const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(tex).texture;
+      scene.environmentIntensity = opts.env ?? 0.9; tex.dispose(); pm.dispose(); res();
+    }, undefined, () => res());
+  }));
+  return { key, rim, hemi, ready };
+}
+
 export function edgeMaterial(style) {
   return new THREE.LineBasicMaterial({ color: style.edge ?? 0x1b1b1b, transparent: true, opacity: style.edgeOpacity ?? 0.9 });
 }

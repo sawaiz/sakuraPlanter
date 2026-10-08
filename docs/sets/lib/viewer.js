@@ -2,7 +2,7 @@
 // Needs window.SET (geometry + models, from instructions/pack.py) and window.SETCFG (sections, theme, PDF link).
 import * as THREE from 'three';
 import { OrbitControls } from '../../vendor/OrbitControls.js';
-import { makePart, modelRoot, edgeMaterial, condMaterial, partMaterial, partGeometry, Outliner } from './scene.js';
+import { makePart, modelRoot, edgeMaterial, condMaterial, partMaterial, partGeometry, Outliner, studio } from './scene.js';
 
 const SET = window.SET, CFG = window.SETCFG, Q = new URLSearchParams(location.search);
 const $ = s => document.querySelector(s);
@@ -43,9 +43,8 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserv
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setClearColor(0x000000, 0);
 stage.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 1.7));
-const key = new THREE.DirectionalLight(0xffffff, 1.5); key.position.set(-1.2, 2, 1.6); scene.add(key);
-const fill = new THREE.DirectionalLight(0xffffff, 0.45); fill.position.set(1.5, -0.3, -1); scene.add(fill);
+const HDR = '../../assets/studio_small_03_1k.hdr';
+const lights = studio(renderer, scene, HDR, { shadows: true, exposure: 0.92, env: 0.75 }), key = lights.key;
 const camera = new THREE.PerspectiveCamera(22, 1, 1, 2e5);
 const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.1;
 const style = { edge: CFG.theme === 'bouquet' ? 0x1d1f21 : 0x141c24, edgeOpacity: 0.85 };
@@ -64,7 +63,7 @@ function rootFor(name) {
 function resize() {
   const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false);
   camera.aspect = r.width / Math.max(1, r.height);
-  const shift = document.body.classList.contains('sub') ? 0 : Math.min(110, r.width * 0.07);   // keep clear of the parts column
+  const shift = document.body.classList.contains('sub') || innerWidth <= 760 ? 0 : Math.min(110, r.width * 0.07);   // keep clear of the parts column
   camera.setViewOffset(r.width, r.height, -shift, 0, r.width, r.height); camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(stage);
@@ -72,7 +71,7 @@ new ResizeObserver(resize).observe(stage);
 // ---------------------------------------------------------------- part icons for the parts box
 const iconCache = new Map();
 const iconR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); iconR.setSize(140, 112); iconR.setClearColor(0, 0);
-const iconScene = new THREE.Scene(); iconScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 1.7)); const ik = key.clone(); iconScene.add(ik);
+const iconScene = new THREE.Scene(); const iconLights = studio(iconR, iconScene, HDR);
 const iconCam = new THREE.PerspectiveCamera(22, 140 / 112, 1, 1e5);
 function icon(pid, code) {
   const k = pid + '|' + code; if (iconCache.has(k)) return iconCache.get(k);
@@ -88,7 +87,7 @@ function icon(pid, code) {
 // ---------------------------------------------------------------- the spin popover (click a part in the box)
 const spinBox = $('#spin'), spinR = new THREE.WebGLRenderer({ antialias: true, alpha: true }); spinR.setPixelRatio(Math.min(devicePixelRatio, 2)); spinR.setSize(180, 160); spinR.setClearColor(0, 0);
 spinBox.prepend(spinR.domElement);
-const spinScene = new THREE.Scene(); spinScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 1.7)); spinScene.add(key.clone());
+const spinScene = new THREE.Scene(); studio(spinR, spinScene, HDR);
 const spinCam = new THREE.PerspectiveCamera(22, 180 / 160, 1, 1e5); let spinObj = null, spinUntil = 0, flash = null;
 function showSpin(pid, code, btn) {
   if (spinObj) spinScene.remove(spinObj);
@@ -108,6 +107,10 @@ CFG.sections.forEach((s, i) => { const o = document.createElement('option'); o.v
 if (CFG.final) { const o = document.createElement('option'); o.value = 'final'; o.textContent = CFG.final.title; sel.appendChild(o); }
 sel.addEventListener('change', () => { const v = sel.value; go(v === 'final' ? pages.length - 1 : pages.findIndex(p => p.sec === CFG.sections[+v])); });
 $('#prev').onclick = () => go(cur - 1); $('#next').onclick = () => go(cur + 1);
+for (const el of [document.querySelector('.left'), document.querySelector('.bottom')]) {
+  let x0 = null; el.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) go(cur + (dx < 0 ? 1 : -1)); }, { passive: true });
+}
 addEventListener('keydown', e => { if (e.target.closest('select,input')) return; if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(cur + 1); } if (e.key === 'ArrowLeft') go(cur - 1); });
 const hl = $('#hl'); hl.checked = store.get(KEY + '/hl') !== '0'; hl.onchange = () => { store.set(KEY + '/hl', hl.checked ? '1' : '0'); };
 
@@ -125,6 +128,40 @@ function draw11(len) {
     <circle cx="${w + 11}" cy="${2 + h / 2}" r="8" fill="#fff" stroke="#1B2733" stroke-width="1.2"/><text x="${w + 11}" y="${2 + h / 2 + 4}" font-size="11" text-anchor="middle" fill="#1B2733">${L}</text>`;
 }
 
+// ---------------------------------------------------------------- insertion arrows (manual style)
+const ALONG_X = new Set(['4519', '32062', '50450', '32054', '3705', '3706', '3707', '30374', '63965', '89678']);
+const ALONG_Z = new Set(['26287', '6538b', '32034', '32039', '24122']);
+const ARROW_COL = CFG.theme === 'bouquet' ? '#D7262E' : '#35A853';
+const arrowMat = new THREE.MeshBasicMaterial({ color: ARROW_COL, transparent: true, opacity: 0.95, depthTest: false, toneMapped: false });
+const arrowOutline = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, depthTest: false, toneMapped: false, side: THREE.BackSide });
+const shaftGeo = new THREE.CylinderGeometry(1, 1, 1, 12), headGeo = new THREE.ConeGeometry(2.6, 6, 16);
+let arrows = [];
+function clearArrows() { arrows.forEach(a => a.parent && a.parent.remove(a)); arrows = []; }
+function partCentre(o) {
+  const bb = SET.geoms[o.userData.pid].bb, c = new THREE.Vector3((bb[0][0] + bb[1][0]) / 2, (bb[0][1] + bb[1][1]) / 2, (bb[0][2] + bb[1][2]) / 2);
+  return { c: c.applyMatrix4(o.userData.base), half: new THREE.Vector3((bb[1][0] - bb[0][0]) / 2, (bb[1][1] - bb[0][1]) / 2, (bb[1][2] - bb[0][2]) / 2) };
+}
+// the way a piece goes in, in the model's own (LDraw) frame: studded pieces come down from their own 'up',
+// axles and connectors slide along their length, away from what is already built
+function insertDir(o, centre) {
+  const e = o.userData.base.elements, pid = o.userData.pid;
+  const ax = ALONG_X.has(pid) ? new THREE.Vector3(e[0], e[1], e[2]) : ALONG_Z.has(pid) ? new THREE.Vector3(e[8], e[9], e[10]) : new THREE.Vector3(-e[4], -e[5], -e[6]);
+  ax.normalize();
+  if (ALONG_X.has(pid) || ALONG_Z.has(pid)) { const pc = partCentre(o).c; if (centre && pc.clone().sub(centre).dot(ax) < 0) ax.negate(); else if (!centre && ax.y > 0) ax.negate(); }
+  return ax;
+}
+function makeArrow(from, to, r) {
+  const g = new THREE.Group(), d = to.clone().sub(from), L = d.length(); d.normalize();
+  const head = Math.min(L * 0.45, r * 7), shaft = new THREE.Mesh(shaftGeo, arrowMat), cone = new THREE.Mesh(headGeo, arrowMat);
+  shaft.scale.set(r, L - head, r); shaft.position.y = (L - head) / 2;
+  cone.scale.set(r, head / 6, r); cone.position.y = L - head / 2;
+  const o1 = new THREE.Mesh(shaftGeo, arrowOutline); o1.scale.set(r * 1.6, L - head, r * 1.6); o1.position.copy(shaft.position);
+  const o2 = new THREE.Mesh(headGeo, arrowOutline); o2.scale.set(r * 1.35, head / 6 * 1.2, r * 1.35); o2.position.copy(cone.position);
+  g.add(o1, o2, shaft, cone); g.renderOrder = 10; g.children.forEach(c => { c.renderOrder = c.material === arrowOutline ? 9 : 10; });
+  g.position.copy(from); g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+  return g;
+}
+
 // ---------------------------------------------------------------- show a page
 let cur = -1, anim = null, camTween = null, active = null, fresh = [];
 function go(i, instant) {
@@ -135,6 +172,40 @@ function go(i, instant) {
   const showAll = p.kind === 'intro' || p.kind === 'final';
   fresh = [];
   R.objs.forEach((o, k) => { const st = R.stepOf[k]; o.visible = st <= p.step; o.matrix.copy(o.userData.base); if (!showAll && st === p.step) fresh.push(o); });
+  // insertion directions and arrows for the new pieces
+  clearArrows();
+  const old = R.objs.filter((o, k) => o.visible && !fresh.includes(o)), centre = old.length ? old.reduce((a, o) => a.add(partCentre(o).c), new THREE.Vector3()).multiplyScalar(1 / old.length) : null;
+  const vb = new THREE.Box3(); R.objs.forEach(o => { if (o.visible) { const pc = partCentre(o); vb.expandByPoint(pc.c.clone().add(pc.half)); vb.expandByPoint(pc.c.clone().sub(pc.half)); } });
+  const vsize = Math.max(vb.isEmpty() ? 100 : vb.getSize(new THREE.Vector3()).length(), 140);
+  const AL = Math.max(16, Math.min(90, vsize * 0.22)), AR = Math.max(0.45, Math.min(2.0, vsize * 0.0042));
+  const st = p.s || {}; const showArrows = !showAll && !(p.kind === 'main' && st.callout) && fresh.length && fresh.length <= 6;
+  const groups = (p.kind === 'main' && st.groups) ? st.groups.map(g => g.map(k => R.objs[k])) : null;
+  if (groups) {
+    // sub-builds fitted in this step move in as whole groups, away from what is already built
+    groups.forEach(g => {
+      const gc = g.reduce((a, o) => a.add(partCentre(o).c), new THREE.Vector3()).multiplyScalar(1 / g.length);
+      const d = centre ? gc.clone().sub(centre) : new THREE.Vector3(0, -1, 0); d.y = Math.min(d.y, 0) * 0.3 + d.y * 0.7; if (d.lengthSq() < 1e-6) d.set(0, -1, 0); d.normalize();
+      g.forEach(o => { o.userData.dir = d; o.userData.slide = AL * 1.3; });
+      if (groups.length <= 6) {
+        const bb = new THREE.Box3(); g.forEach(o => { const pc = partCentre(o); bb.expandByPoint(pc.c.clone().add(pc.half)); bb.expandByPoint(pc.c.clone().sub(pc.half)); });
+        const half = bb.getSize(new THREE.Vector3()).multiplyScalar(0.5), ext = Math.abs(half.x * d.x) + Math.abs(half.y * d.y) + Math.abs(half.z * d.z);
+        const end = gc.clone().addScaledVector(d, ext + AR * 3), a = makeArrow(end.clone().addScaledVector(d, AL), end, AR); R.root.add(a); arrows.push(a);
+      }
+    });
+  } else {
+    const cand = [];
+    fresh.forEach(o => {
+      const d = insertDir(o, centre); o.userData.dir = d; o.userData.slide = AL;
+      const { c, half } = partCentre(o), ext = Math.abs(half.x * d.x) + Math.abs(half.y * d.y) + Math.abs(half.z * d.z);
+      cand.push({ d, end: c.clone().addScaledVector(d, ext + AR * 3), c });
+    });
+    // one arrow per line of insertion: pieces stacked on the same line share the outermost arrow
+    if (showArrows) cand.forEach((a, i) => {
+      const hidden = cand.some((b, j) => j !== i && a.d.dot(b.d) > 0.95 && b.end.clone().sub(a.end).dot(a.d) > 0.5
+        && b.end.clone().sub(a.end).projectOnPlane(a.d).length() < Math.max(6, AR * 6));
+      if (!hidden) { const ar = makeArrow(a.end.clone().addScaledVector(a.d, AL), a.end, AR); R.root.add(ar); arrows.push(ar); }
+    });
+  }
   // page furniture
   document.body.classList.toggle('sub', p.kind === 'sub');
   $('#mult').textContent = (p.kind === 'sub' ? p.mult : p.sec.mult) + 'x';
@@ -180,7 +251,7 @@ function findPdf(i) { for (let j = i; j < pages.length; j++) if (pages[j].kind =
 // camera: fit what is on screen, from the step's view (or the section's)
 function frame(R, p, meta, instant) {
   R.root.updateMatrixWorld(true);
-  const box = new THREE.Box3(); R.objs.forEach(o => { if (o.visible) box.expandByObject(o); });
+  const box = new THREE.Box3(); R.objs.forEach(o => { if (o.visible) box.expandByObject(o); }); arrows.forEach(a => box.expandByObject(a));
   if (box.isEmpty()) return;
   const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
   const v = Object.assign({ az: -30, el: 20, zoom: 1 }, p.sec.view || {}, (p.kind === 'sub' ? SET.models[p.model].steps.at(-1).meta?.view : null) || {}, meta.view || {});
@@ -190,6 +261,10 @@ function frame(R, p, meta, instant) {
   const fitH = rad / Math.sin(fov / 2), fitW = rad / Math.sin(Math.atan(Math.tan(fov / 2) * camera.aspect));
   const d = Math.max(fitH, fitW) * 1.08 / v.zoom;
   const to = { pos: c.clone().addScaledVector(dir, d), target: c.clone() };
+  // key light from the camera's upper left, its shadow box sized to the model
+  const kd = new THREE.Vector3(Math.cos(0.75) * Math.sin(az - 0.7), Math.sin(0.75), Math.cos(0.75) * Math.cos(az - 0.7));
+  key.position.copy(c).addScaledVector(kd, rad * 4); key.target.position.copy(c);
+  const sc = key.shadow.camera; sc.left = sc.bottom = -rad * 1.15; sc.right = sc.top = rad * 1.15; sc.near = rad * 1.5; sc.far = rad * 7; sc.updateProjectionMatrix();
   camera.near = d / 50; camera.far = d * 50; camera.updateProjectionMatrix();
   controls.minDistance = d * 0.15; controls.maxDistance = d * 4;
   if (instant) { camera.position.copy(to.pos); controls.target.copy(to.target); camTween = null; }
@@ -209,10 +284,8 @@ function loop(now) {
   { const d = camera.position.distanceTo(controls.target), o = Math.max(0.12, Math.min(0.85, 1.5 - d / 2200)); mats.edge.opacity = o; mats.cond.uniforms.opacity.value = o; }
   if (anim) {
     const t = Math.min(1, (now - anim.t0 - 150) / 450), e = ease(Math.max(0, t));
-    // new parts drop in from screen-up, in the model's own frame (the root is flipped)
-    up.set(0, 1, 0).applyQuaternion(camera.quaternion); const size = (active.root.userData.r ||= new THREE.Box3().setFromObject(active.root).getSize(new THREE.Vector3()).length());
-    up.multiplyScalar((1 - e) * Math.min(size * 0.18, 120)); up.y = -up.y; up.z = -up.z;
-    anim.objs.forEach(o => { o.matrix.copy(tmp.makeTranslation(up.x, up.y, up.z)).multiply(o.userData.base); });
+    // new pieces slide in along their arrows (directions are in the model's own LDraw frame)
+    anim.objs.forEach(o => { const d = o.userData.dir, k = (1 - e) * (o.userData.slide || 60); o.matrix.copy(tmp.makeTranslation(d.x * k, d.y * k, d.z * k)).multiply(o.userData.base); });
     if (t >= 1) { anim.objs.forEach(o => o.matrix.copy(o.userData.base)); anim = null; }
   }
   renderer.render(scene, camera);
@@ -229,6 +302,7 @@ function loop(now) {
 addEventListener('pointerdown', e => { if (!e.target.closest('#spin,.parts')) spinBox.classList.remove('on'); });
 
 $('#loading').remove();
+iconLights.ready.then(() => { iconCache.clear(); const c = cur; cur = -1; go(c, true); });
 const start = Q.has('page') ? +Q.get('page') : +(store.get(KEY + '/page') || 0);
 go(isNaN(start) ? 0 : start, true);
 requestAnimationFrame(loop);
