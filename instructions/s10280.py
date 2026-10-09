@@ -126,7 +126,7 @@ def rose_head():
     P9.add('98835', 'Light Nougat'); P9.step(); P9.add('11476', 'Light Nougat', RY(180), (0, -8, -6)); P9.step()
     hinge9 = np.array([0, -6, 20.0])
     for k in range(4):
-        M, r = petal_frame(90 * k, -20); P = r * (WHEEL_RING_R + 8) + np.array([0, WHEEL_RING_Y + 4, 0])
+        M, r = petal_frame(90 * k, -44); P = r * (WHEEL_RING_R + 10) + np.array([0, WHEEL_RING_Y + 4, 0])
         m.place(P9, M, P - M @ hinge9)
     m.step(callout=P9, mult=4, rotate=True, view=dict(az=-20, el=-35, min=80))
     m.add('30374', 'Reddish Brown', np.eye(3), (0, 6, 0)); m.step(view=dict(az=-30, el=-20, min=80))

@@ -10,3 +10,5 @@ __pycache__/
 .DS_Store
 concepts/work/
 instructions/.checkcache.json
+render/frames/
+render/out/

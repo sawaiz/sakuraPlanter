@@ -263,8 +263,16 @@ function frame(R, p, meta, instant) {
   const az = THREE.MathUtils.degToRad(v.az), el = THREE.MathUtils.degToRad(v.el);
   const dir = new THREE.Vector3(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az));
   const fov = THREE.MathUtils.degToRad(camera.fov), rad = Math.max(size.length() / 2, v.min ?? 70);
-  const fitH = rad / Math.sin(fov / 2), fitW = rad / Math.sin(Math.atan(Math.tan(fov / 2) * camera.aspect));
-  const d = Math.max(fitH, fitW) * 1.08 / v.zoom;
+  // fit the model's extents as seen from the camera (not a bounding sphere), so tall thin pieces fill a tall phone screen
+  const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize(), upv = new THREE.Vector3().crossVectors(dir, right).normalize();
+  let hw = 0, hh = 0, hd = 0;
+  for (let i = 0; i < 8; i++) {
+    const q = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).sub(c);
+    hw = Math.max(hw, Math.abs(q.dot(right))); hh = Math.max(hh, Math.abs(q.dot(upv))); hd = Math.max(hd, Math.abs(q.dot(dir)));
+  }
+  const minHalf = (v.min ?? 70) * 0.9; hw = Math.max(hw, minHalf); hh = Math.max(hh, minHalf);
+  const tH = Math.tan(fov / 2), tW = tH * camera.aspect;
+  const d = (Math.max(hh / tH, hw / tW) + hd) * (p.kind === 'sub' ? 1.1 : 1.18) / v.zoom;     // room for the top bar, footer and arrows
   const to = { pos: c.clone().addScaledVector(dir, d), target: c.clone() };
   // key light from the camera's upper left, its shadow box sized to the model
   const kd = new THREE.Vector3(Math.cos(0.75) * Math.sin(az - 0.7), Math.sin(0.75), Math.cos(0.75) * Math.cos(az - 0.7));
@@ -311,4 +319,4 @@ iconLights.ready.then(() => { iconCache.clear(); const c = cur; cur = -1; go(c, 
 const start = Q.has('page') ? +Q.get('page') : +(store.get(KEY + '/page') || 0);
 go(isNaN(start) ? 0 : start, true);
 requestAnimationFrame(loop);
-window.pages = pages; window.goPage = i => go(i, true); window.ready = true;
+window.__view = { camera, controls }; window.pages = pages; window.goPage = i => go(i, true); window.ready = true;

@@ -52,6 +52,7 @@ body.sub .mult.on { display: block; color: #14202B; }
 .rotate.on { display: block; }
 .oneone { display: none; align-items: center; gap: 6px; background: var(--box); border: var(--box-w) solid var(--box-line); border-radius: var(--box-r); padding: 6px 8px; }
 .oneone.on { display: inline-flex; }
+.oneone { max-width: 168px; flex-wrap: wrap; }
 .oneone b { font: 500 22px/1 var(--sans); }
 .oneone button { all: unset; cursor: pointer; font-size: 11px; text-decoration: underline; color: var(--ink-soft); }
 
