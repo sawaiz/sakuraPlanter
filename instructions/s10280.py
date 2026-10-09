@@ -476,6 +476,8 @@ def build():
 if __name__ == '__main__':
     from pack import pack, part_names
     models, subs = build()
+    from check import annotate
+    annotate(models + subs, verbose=False)      # slide-in direction for every piece, checked against what is already built
     out = os.path.join(os.path.dirname(HERE), 'docs', 'sets', '10280', 'data', 'set.js')
     pack(models + subs, out, extra={'set': '10280', 'names': part_names()})
     for m in models: print(m.name, len(m.parts), 'pieces', len(m.steps), 'steps')

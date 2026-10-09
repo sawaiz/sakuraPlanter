@@ -171,7 +171,7 @@ function go(i, instant) {
   if (active && active !== R) active.root.visible = false; R.root.visible = true; active = R;
   const showAll = p.kind === 'intro' || p.kind === 'final';
   fresh = [];
-  R.objs.forEach((o, k) => { const st = R.stepOf[k]; o.visible = st <= p.step; o.matrix.copy(o.userData.base); if (!showAll && st === p.step) fresh.push(o); });
+  R.objs.forEach((o, k) => { o.userData.idx = k; const st = R.stepOf[k]; o.visible = st <= p.step; o.matrix.copy(o.userData.base); if (!showAll && st === p.step) fresh.push(o); });
   // insertion directions and arrows for the new pieces
   clearArrows();
   const old = R.objs.filter((o, k) => o.visible && !fresh.includes(o)), centre = old.length ? old.reduce((a, o) => a.add(partCentre(o).c), new THREE.Vector3()).multiplyScalar(1 / old.length) : null;
@@ -180,11 +180,16 @@ function go(i, instant) {
   const AL = Math.max(16, Math.min(90, vsize * 0.22)), AR = Math.max(0.45, Math.min(2.0, vsize * 0.0042));
   const st = p.s || {}; const showArrows = !showAll && !(p.kind === 'main' && st.callout) && fresh.length && fresh.length <= 6;
   const groups = (p.kind === 'main' && st.groups) ? st.groups.map(g => g.map(k => R.objs[k])) : null;
+  // directions worked out by instructions/check.py: the way each piece (or fitted sub-build) can slide in without
+  // passing through the model; steps without them fall back to the heuristics below
+  const insDir = new Map();
+  if (!showAll && st.ins) st.ins.forEach(u => { if (u.k !== 'blocked' && u.k !== 'first') u.p.forEach(k => insDir.set(k, new THREE.Vector3(u.d[0], u.d[1], u.d[2]).normalize())); });
   if (groups) {
     // sub-builds fitted in this step move in as whole groups, away from what is already built
     groups.forEach(g => {
       const gc = g.reduce((a, o) => a.add(partCentre(o).c), new THREE.Vector3()).multiplyScalar(1 / g.length);
-      const d = centre ? gc.clone().sub(centre) : new THREE.Vector3(0, -1, 0); d.y = Math.min(d.y, 0) * 0.3 + d.y * 0.7; if (d.lengthSq() < 1e-6) d.set(0, -1, 0); d.normalize();
+      let d = insDir.get(g[0].userData.idx);
+      if (d) d = d.clone(); else { d = centre ? gc.clone().sub(centre) : new THREE.Vector3(0, -1, 0); d.y = Math.min(d.y, 0) * 0.3 + d.y * 0.7; if (d.lengthSq() < 1e-6) d.set(0, -1, 0); d.normalize(); }
       g.forEach(o => { o.userData.dir = d; o.userData.slide = AL * 1.3; });
       if (groups.length <= 6) {
         const bb = new THREE.Box3(); g.forEach(o => { const pc = partCentre(o); bb.expandByPoint(pc.c.clone().add(pc.half)); bb.expandByPoint(pc.c.clone().sub(pc.half)); });
@@ -195,7 +200,7 @@ function go(i, instant) {
   } else {
     const cand = [];
     fresh.forEach(o => {
-      const d = insertDir(o, centre); o.userData.dir = d; o.userData.slide = AL;
+      const d = insDir.has(o.userData.idx) ? insDir.get(o.userData.idx).clone() : insertDir(o, centre); o.userData.dir = d; o.userData.slide = AL;
       const { c, half } = partCentre(o), ext = Math.abs(half.x * d.x) + Math.abs(half.y * d.y) + Math.abs(half.z * d.z);
       cand.push({ d, end: c.clone().addScaledVector(d, ext + AR * 3), c });
     });

@@ -144,9 +144,9 @@ def branch(colour_name):
     def holder_cluster(nbars, name):
         S = Model(name, 'Side twig')
         S.add('23443', BR); S.step()
-        S.add('78258', BR, np.eye(3), (0, -30, 0)); S.step()
-        b = S.add('4733', BR, np.eye(3), (0, -54, 0)); S.step()
-        for k in ([0, 1] if nbars == 2 else [0, 1, 2, 3]): red_bar_on_side_stud(S, np.eye(3), np.array([0, -54, 0.0]), k)
+        S.add('78258', BR, np.eye(3), (0, -42, 0)); S.step()               # the ring stops the bar on the holder's top
+        b = S.add('4733', BR, np.eye(3), (0, -66, 0)); S.step()
+        for k in ([0, 1] if nbars == 2 else [0, 1, 2, 3]): red_bar_on_side_stud(S, np.eye(3), np.array([0, -66, 0.0]), k)
         S.step(); return S
     S8 = holder_cluster(2, 'side_twig_2'); S9 = holder_cluster(4, 'side_twig_4'); subs += [S8, S9]
     clusters = []
@@ -259,6 +259,8 @@ def build():
 if __name__ == '__main__':
     from pack import pack, part_names
     models, subs = build()
+    from check import annotate
+    annotate(models + subs, verbose=False)      # slide-in direction for every piece, checked against what is already built
     out = os.path.join(os.path.dirname(HERE), 'docs', 'sets', '40725', 'data', 'set.js')
     pack(models + subs, out, extra={'set': '40725', 'names': part_names()})
     for mm in models[:2]: print(mm.name, len(mm.parts), 'pieces', len(mm.steps), 'steps')
