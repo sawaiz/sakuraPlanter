@@ -442,8 +442,8 @@ def bouquet(parts):
     m.step(view=dict(az=-10, el=8))
     return m
 
-if __name__ == '__main__':
-    from pack import pack, part_names
+def build():
+    """Every model of the set: main builds first, then their sub-builds."""
     d = daisy(); rh = rose_head(); rc = rose_stem_curved(); rs = rose_stem_straight()
     ro = roses(rh[0], rc[0], rc[2], rs[0], rs[2])
     po = poppy(); gr = grass(); sh = snap_head(); scs = snap_stem(True); sss = snap_stem(False)
@@ -471,6 +471,11 @@ if __name__ == '__main__':
         models.append(m)
         for s in ss:
             if s.name not in seen: seen.add(s.name); subs.append(s)
+    return models, subs
+
+if __name__ == '__main__':
+    from pack import pack, part_names
+    models, subs = build()
     out = os.path.join(os.path.dirname(HERE), 'docs', 'sets', '10280', 'data', 'set.js')
     pack(models + subs, out, extra={'set': '10280', 'names': part_names()})
     for m in models: print(m.name, len(m.parts), 'pieces', len(m.steps), 'steps')

@@ -246,8 +246,7 @@ def branch(colour_name):
     for st, pg in zip(m.steps, pages): st['meta']['pdf'] = pg + (0 if white else 23)
     return m, subs
 
-if __name__ == '__main__':
-    from pack import pack, part_names
+def build():
     w, sw = branch('white'); p, sp = branch('pink')
     # final: both branches together as in the box picture (page 50)
     fin = Model('final', 'Cherry Blossoms')
@@ -255,6 +254,11 @@ if __name__ == '__main__':
     seen = {}; subs = []
     for s in sw + sp:
         if s.name not in seen: seen[s.name] = 1; subs.append(s)
+    return [w, p, fin], subs
+
+if __name__ == '__main__':
+    from pack import pack, part_names
+    models, subs = build()
     out = os.path.join(os.path.dirname(HERE), 'docs', 'sets', '40725', 'data', 'set.js')
-    pack([w, p, fin] + subs, out, extra={'set': '40725', 'names': part_names()})
-    for mm in (w, p): print(mm.name, len(mm.parts), 'pieces', len(mm.steps), 'steps')
+    pack(models + subs, out, extra={'set': '40725', 'names': part_names()})
+    for mm in models[:2]: print(mm.name, len(mm.parts), 'pieces', len(mm.steps), 'steps')
