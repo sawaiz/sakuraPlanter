@@ -57,6 +57,8 @@ class Geo:
         if len(Vu) > 1500: Vu = Vu[rng.choice(len(Vu), 1500, replace=False)]
         self.pts = np.vstack([S, Vu])
         self.feats = [(kd, np.asarray(p, float), np.asarray(ax, float)) for kd, p, ax, ln, sub in conn.summary(pid)]
+        # joint lines: axles, pins, bars and studs run through their holes, so volume shared near them is contact
+        self.joints = [(p, ax, ln) for (kd, p, ax, ln, sub) in conn.summary(pid) if kd in ('axle', 'pin', 'pinhole', 'bar', 'stud', 'antistud')]
 
     def field(self, L):
         """Signed distance (LDU) at local points; +PAD+1 outside the grid."""
@@ -85,10 +87,23 @@ def world_box(part, off=np.zeros(3)):
 
 def boxes_meet(a, b, pad=1.0): return np.all(a[0] - pad < b[1]) and np.all(b[0] - pad < a[1])
 
+JOINT_R = 4.5
+
+def in_joint(P, part):
+    """Which world points lie in a joint of `part`: within JOINT_R of its axle/pin/bar line, near its length."""
+    m = np.zeros(len(P), bool)
+    for c, ax, ln in G(part['pid']).joints:
+        w = part['M'] @ c + part['t']; a = part['M'] @ ax; a = a / (np.linalg.norm(a) or 1)
+        d = P - w; t = d @ a; perp = np.linalg.norm(d - np.outer(t, a), axis=1)
+        lo, hi = (-6.0, ln + 6.0) if ln > 1.5 else (-JOINT_R, JOINT_R)     # the joint runs from its start point along ax
+        m |= (perp < JOINT_R) & (t > lo) & (t < hi)
+    return m
+
 def penetration(A, B, offA=np.zeros(3)):
-    """Max depth and number of points deeper than PEN_FINAL, either way round, with A moved by offA."""
-    da = inside_depth(world_pts(A, offA), B)
-    Bs = dict(B); db = inside_depth(world_pts(B), dict(A, t=A['t'] + offA))
+    """Max depth and number of points deeper than PEN_FINAL that are not in a joint, either way round, with A moved by offA."""
+    PA = world_pts(A, offA); PB = world_pts(B)
+    da = inside_depth(PA, B); db = inside_depth(PB, dict(A, t=A['t'] + offA))
+    da = np.where(in_joint(PA, B), 0.0, da); db = np.where(in_joint(PB, dict(A, t=A['t'] + offA)), 0.0, db)
     return max(da.max(initial=0), db.max(initial=0)), int((da > PEN_FINAL).sum() + (db > PEN_FINAL).sum())
 
 def gap(A, B):
